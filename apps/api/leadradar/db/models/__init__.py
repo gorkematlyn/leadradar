@@ -1,10 +1,10 @@
 """All ORM models; importing this package registers them on ``Base.metadata``."""
 
 from leadradar.db.models.advertising import (  # noqa: F401
-    AdvertisingProvider,
-    AdvertisingResearchRun,
     Advertisement,
     Advertiser,
+    AdvertisingProvider,
+    AdvertisingResearchRun,
     ApifyActorConfig,
     ProviderUsage,
 )

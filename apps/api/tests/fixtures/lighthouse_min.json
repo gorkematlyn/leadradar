@@ -1,0 +1,6 @@
+{"lighthouseVersion": "12.0.0", "fetchTime": "2026-11-01T10:00:00.000Z", "finalDisplayedUrl": "https://acme.example/",
+ "configSettings": {"formFactor": "mobile", "throttlingMethod": "simulate", "throttling": {"rttMs": 150}},
+ "environment": {"hostUserAgent": "HeadlessChrome", "benchmarkIndex": 1500},
+ "categories": {"performance": {"score": 0.42}, "accessibility": {"score": 0.91}, "best-practices": {"score": 0.8}, "seo": {"score": 0.75}},
+ "audits": {"first-contentful-paint": {"numericValue": 2100.5}, "largest-contentful-paint": {"numericValue": 5300.2},
+            "cumulative-layout-shift": {"numericValue": 0.05}, "total-blocking-time": {"numericValue": 640}, "speed-index": {"numericValue": 4100}}}

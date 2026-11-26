@@ -64,6 +64,9 @@ DEFS: list[SettingDef] = [
     SettingDef("discovery.initial_countries", ["TR", "NL", "DE", "GB", "US"], "list", "discovery"),
     SettingDef("discovery.initial_import_scheduled", False, "bool", "internal"),
     SettingDef("discovery.priority_countries", ["TR", "NL", "DE", "GB", "US"], "list", "discovery"),
+    # Scoring
+    SettingDef("scoring.excluded_domains", [], "list", "scoring"),
+    SettingDef("scoring.default_profile", "general", "str", "scoring"),
     # Monitoring
     SettingDef("monitoring.recheck_days", 14, "int", "monitoring", 1, 365),
     SettingDef("monitoring.score_change_threshold", 8, "int", "monitoring", 1, 50),

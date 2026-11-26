@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="referrer" content="no-referrer">
+<title>{{ c.title }} — {{ c.company.name }}</title>
+<style nonce="{{ nonce }}">
+@font-face { font-family: "Geist"; src: url("{{ font_sans }}") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url("{{ font_mono }}") format("woff2"); font-weight: 100 900; font-display: swap; }
+{{ css | safe }}
+</style>
+</head>
+<body class="{{ 'print' if print_mode else '' }}">
+<main class="report">
+  <header class="cover">
+    <div class="brand">{% if c.branding.name %}{{ c.branding.name }}{% endif %}</div>
+    <h1>{{ c.title }}</h1>
+    <p class="company">{{ c.company.name }}{% if c.company.website %} · <span class="mono">{{ c.company.website }}</span>{% endif %}</p>
+    <dl class="meta">
+      {% if c.audit_date %}<div><dt>{{ t.audit_date }}</dt><dd class="mono">{{ c.audit_date }}</dd></div>{% endif %}
+      <div><dt>{{ t.updated }}</dt><dd class="mono">{{ c.updated_at }}</dd></div>
+      <div><dt>{{ t.version }}</dt><dd class="mono">v{{ version }}</dd></div>
+    </dl>
+    {% if not print_mode %}
+    <nav class="actions">
+      <a href="?lang=en" {% if lang == 'en' %}aria-current="true"{% endif %}>English</a>
+      <a href="?lang=tr" {% if lang == 'tr' %}aria-current="true"{% endif %}>Türkçe</a>
+      {% if pdf_url %}<a class="pdf" href="{{ pdf_url }}">{{ t.download_pdf }}</a>{% endif %}
+    </nav>
+    {% endif %}
+  </header>
+
+  {% macro finding_list(items) %}
+  <ul class="findings">
+  {% for f in items %}
+    <li class="finding {{ f.result }}">
+      <span class="badge">{{ t[f.result] }}</span>
+      <div>
+        <h4>{{ f.title[lang] }}</h4>
+        <p>{{ f.description[lang] }}</p>
+        {% if f.recommendation %}<p class="rec"><strong>{{ t.recommendation }}:</strong> {{ f.recommendation[lang] }}</p>{% endif %}
+      </div>
+    </li>
+  {% endfor %}
+  </ul>
+  {% endmacro %}
+
+  {% if 'summary' in c.sections %}
+  <section>
+    <h2>{{ t.summary }}</h2>
+    {% set failed = c.findings.values() | sum(start=[]) | selectattr('result', 'equalto', 'failed') | list %}
+    {% set passed = c.findings.values() | sum(start=[]) | selectattr('result', 'equalto', 'passed') | list %}
+    <div class="stats">
+      <div><span class="num">{{ failed | length }}</span><span>{{ t.issues_found }}</span></div>
+      <div><span class="num">{{ passed | length }}</span><span>{{ t.checks_passed }}</span></div>
+    </div>
+    {{ finding_list(c.findings.summary) }}
+  </section>
+  {% endif %}
+
+  {% if 'performance' in c.sections and c.performance %}
+  <section>
+    <h2>{{ t.performance }}</h2>
+    <p class="note">{{ t.lab_note }}</p>
+    <table class="metrics">
+      <tbody>
+      {% for k, v in c.performance.scores.items() %}{% if v is not none %}
+        <tr><th>{{ t['score_' ~ k] }}</th><td class="mono">{{ v }} / 100</td></tr>
+      {% endif %}{% endfor %}
+      {% set m = c.performance.metrics %}
+      {% if m.fcp_ms is not none %}<tr><th>First Contentful Paint</th><td class="mono">{{ '%.1f' | format(m.fcp_ms / 1000) }} s</td></tr>{% endif %}
+      {% if m.lcp_ms is not none %}<tr><th>Largest Contentful Paint</th><td class="mono">{{ '%.1f' | format(m.lcp_ms / 1000) }} s</td></tr>{% endif %}
+      {% if m.cls is not none %}<tr><th>Cumulative Layout Shift</th><td class="mono">{{ '%.3f' | format(m.cls) }}</td></tr>{% endif %}
+      {% if m.tbt_ms is not none %}<tr><th>Total Blocking Time</th><td class="mono">{{ m.tbt_ms | round | int }} ms</td></tr>{% endif %}
+      {% if m.speed_index_ms is not none %}<tr><th>Speed Index</th><td class="mono">{{ '%.1f' | format(m.speed_index_ms / 1000) }} s</td></tr>{% endif %}
+      </tbody>
+    </table>
+    {{ finding_list(c.findings.performance) }}
+  </section>
+  {% endif %}
+
+  {% if 'mobile' in c.sections and c.findings.mobile %}
+  <section><h2>{{ t.mobile }}</h2>{{ finding_list(c.findings.mobile) }}</section>
+  {% endif %}
+
+  {% if 'screenshots' in c.sections and c.screenshots %}
+  <section class="shots">
+    <h2>{{ t.screenshots }}</h2>
+    <div class="grid">
+    {% for s in c.screenshots %}
+      <figure class="{{ s.viewport }}"><img src="{{ asset_url(s.asset) }}" alt="{{ s.caption }}"><figcaption>{{ s.caption }}</figcaption></figure>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if 'seo' in c.sections and c.findings.seo %}
+  <section><h2>{{ t.seo }}</h2>{{ finding_list(c.findings.seo) }}</section>
+  {% endif %}
+
+  {% if 'accessibility' in c.sections and c.findings.accessibility %}
+  <section><h2>{{ t.accessibility }}</h2>{{ finding_list(c.findings.accessibility) }}</section>
+  {% endif %}
+
+  {% if 'tracking' in c.sections and c.tracking %}
+  <section>
+    <h2>{{ t.tracking }}</h2>
+    <p class="note">{{ t.tracking_note }}</p>
+    <table class="metrics"><tbody>
+    {% for x in c.tracking %}<tr><th>{{ x.name }}</th><td>{{ t[x.status] if x.status in t else x.status }}</td></tr>{% endfor %}
+    </tbody></table>
+  </section>
+  {% endif %}
+
+  {% if 'advertising' in c.sections and c.advertising %}
+  <section>
+    <h2>{{ t.advertising }}</h2>
+    <p class="note">{{ t.ads_note }}</p>
+    <ul class="ads">{% for a in c.advertising %}<li><strong>{{ a.platform }}</strong>{% if a.status %} · {{ t[a.status] if a.status in t else a.status }}{% endif %}{% if a.first_seen %} · <span class="mono">{{ a.first_seen }}</span>{% endif %}{% if a.text %}<p>{{ a.text }}</p>{% endif %}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  {% if 'recommendations' in c.sections and (c.recommendations or c.findings.recommendations) %}
+  <section>
+    <h2>{{ t.recommendations }}</h2>
+    {% if c.recommendations %}<ol class="recs">{% for r in c.recommendations %}<li>{{ r[lang] }}</li>{% endfor %}</ol>{% endif %}
+    {{ finding_list(c.findings.recommendations | selectattr('result', 'equalto', 'failed') | list) }}
+  </section>
+  {% endif %}
+
+  {% if 'services' in c.sections and c.services %}
+  <section><h2>{{ t.services }}</h2><ul class="services">{% for s in c.services %}<li>{{ s.name[lang] }}</li>{% endfor %}</ul></section>
+  {% endif %}
+
+  {% if c.public_notes %}
+  <section><h2>{{ t.notes }}</h2><p class="prewrap">{{ c.public_notes }}</p></section>
+  {% endif %}
+
+  {% if 'methodology' in c.sections and c.methodology %}
+  <section class="method"><h2>{{ t.methodology }}</h2><ul>{% for p in c.methodology[lang] %}<li>{{ p }}</li>{% endfor %}</ul></section>
+  {% endif %}
+
+  <footer>
+    {% if c.branding.contact %}<p>{{ c.branding.contact }}</p>{% endif %}
+    {% if c.attribution %}<p class="attr">{{ c.attribution }}</p>{% endif %}
+  </footer>
+</main>
+</body>
+</html>

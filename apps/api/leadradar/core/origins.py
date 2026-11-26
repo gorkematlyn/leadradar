@@ -60,7 +60,7 @@ def normalize_host(host: str) -> str:
             except idna.IDNAError as exc:
                 raise HostValidationError("invalid host") from exc
             if not _HOST_RE.match(name):
-                raise HostValidationError("invalid host")
+                raise HostValidationError("invalid host") from None
     if port:
         if not port.isdigit() or not (0 < int(port) < 65536):
             raise HostValidationError("invalid port")

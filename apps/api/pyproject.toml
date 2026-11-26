@@ -42,7 +42,7 @@ build-backend = "setuptools.build_meta"
 include = ["leadradar*"]
 
 [tool.setuptools.package-data]
-leadradar = ["seeds/data/*.json", "templates/*.html", "templates/*.css", "templates/fonts/*"]
+leadradar = ["seeds/data/*.json", "templates/*.html", "templates/*.css", "templates/fonts/*", "modules/website_audit/*.js"]
 
 [tool.ruff]
 line-length = 110
@@ -59,4 +59,5 @@ ignore = ["S101", "S311", "B008", "E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 markers = ["integration: requires a PostgreSQL database (TEST_DATABASE_URL)", "live: explicitly enabled live provider smoke tests"]

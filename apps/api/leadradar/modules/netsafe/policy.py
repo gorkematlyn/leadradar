@@ -89,8 +89,20 @@ class Target:
     port: int
 
 
+def _test_allowed(host: str) -> bool:
+    """Test-only escape hatch for local fixture servers. Inert unless APP_ENV=test."""
+    import os
+
+    if get_settings().app_env != "test":
+        return False
+    allowed = {h.strip() for h in os.environ.get("LEADRADAR_TEST_ALLOW_HOSTS", "").split(",") if h.strip()}
+    return host in allowed
+
+
 def check_hostname(host: str) -> str:
     host = host.strip().rstrip(".").lower()
+    if _test_allowed(host):
+        return host
     if not host:
         raise BlockedDestination("empty_host")
     try:
@@ -142,6 +154,8 @@ def resolve_safe(host: str, port: int) -> list[str]:
     """Resolve and require *every* address to be public (prevents mixed-record rebinding)."""
     host = check_hostname(host)
     check_port(port)
+    if _test_allowed(host):
+        return [socket.gethostbyname(host)]
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except socket.gaierror as exc:

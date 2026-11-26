@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # Worker identity and limits (defaults; administrators may lower them in settings).
     worker_queues: str = "analysis"
     worker_concurrency: int = 2
-    worker_tmp_dir: str = "/tmp/leadradar"
+    worker_tmp_dir: str = "/tmp/leadradar"  # noqa: S108 - container-private tmpfs/ephemeral dir
 
     # Additional egress deny list for the network-safety proxy (e.g. the server's public IP).
     egress_deny_cidrs: str = ""
