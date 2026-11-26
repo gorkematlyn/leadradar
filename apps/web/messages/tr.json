@@ -426,7 +426,10 @@
   "audit": {
     "title": "Web denetimi",
     "history": "Denetim geçmişi",
-    "mode": { "full": "Tam", "quick": "Hızlı" },
+    "mode": {
+      "full": "Tam",
+      "quick": "Hızlı"
+    },
     "pages": "Denetlenen sayfalar",
     "technologies": "Algılanan teknolojiler",
     "lighthouse": "Lighthouse (laboratuvar ölçümü)",
@@ -463,7 +466,13 @@
     "approved": "Raporlar için onaylandı",
     "validate": "Geçerli",
     "invalidate": "Geçersiz",
-    "severity": { "critical": "Kritik", "high": "Yüksek", "medium": "Orta", "low": "Düşük", "info": "Bilgi" }
+    "severity": {
+      "critical": "Kritik",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "low": "Düşük",
+      "info": "Bilgi"
+    }
   },
   "result": {
     "passed": "Başarılı",
@@ -479,7 +488,10 @@
   "tracking": {
     "title": "İzleme teknolojileri",
     "note": "Yalnızca istemci tarafı gözlem. 'Algılanmadı' yokluğun kanıtı değildir: etiketler onay bekleyebilir, sunucu taraflı, koşullu veya bölgesel olabilir.",
-    "consentState": { "initial": "Onaydan önce", "after_accept": "Çerezler kabul edildikten sonra" },
+    "consentState": {
+      "initial": "Onaydan önce",
+      "after_accept": "Çerezler kabul edildikten sonra"
+    },
     "methods": "Algılama yöntemleri",
     "evidence": "Kanıt",
     "identifiers": "Kimlikler (gizlenmiş)",
@@ -507,7 +519,10 @@
     "queued": "Araştırma sıraya alındı",
     "platform": "Platform",
     "lastResearch": "Son araştırma",
-    "method": { "automated": "Otomatik", "manual": "Manuel" },
+    "method": {
+      "automated": "Otomatik",
+      "manual": "Manuel"
+    },
     "manualResearch": "Resmi kaynağı aç",
     "recordManual": "Doğrulanmış sonucu kaydet",
     "advertisers": "Reklamverenler",
@@ -537,7 +552,11 @@
       "unsupported": "Desteklenmiyor",
       "error": "Hata"
     },
-    "adStatus": { "active": "Aktif", "inactive": "Pasif", "unknown": "Bilinmiyor" },
+    "adStatus": {
+      "active": "Aktif",
+      "inactive": "Pasif",
+      "unknown": "Bilinmiyor"
+    },
     "platforms": {
       "meta": "Meta",
       "google": "Google",
@@ -546,7 +565,11 @@
       "microsoft": "Microsoft",
       "openai": "ChatGPT"
     },
-    "automation": { "automated": "Otomatik (resmi API)", "manual": "Manuel araştırma", "unsupported": "Desteklenmiyor" }
+    "automation": {
+      "automated": "Otomatik (resmi API)",
+      "manual": "Manuel araştırma",
+      "unsupported": "Desteklenmiyor"
+    }
   },
   "evidence": {
     "title": "Kanıtlar",
@@ -575,7 +598,12 @@
     "reviewAudit": "Denetimi incele",
     "waitingSince": "Bekleme başlangıcı",
     "questions": "İnceleme soruları",
-    "answers": { "yes": "Evet", "no": "Hayır", "unknown": "Bilinmiyor", "not_applicable": "Yok" },
+    "answers": {
+      "yes": "Evet",
+      "no": "Hayır",
+      "unknown": "Bilinmiyor",
+      "not_applicable": "Yok"
+    },
     "note": "Not",
     "validateFindings": "Sezgisel bulguları doğrulayın",
     "approveScreenshots": "Ekran görüntülerini raporlar için onaylayın",
@@ -694,7 +722,11 @@
     "pdf": "PDF",
     "pdfPending": "PDF oluşturuluyor",
     "neverExposed": "Asla gösterilmez: dahili puanlar, güven, CRM durumu, notlar, etiketler, kişisel iletişim verileri, günlükler ve izleme kimlikleri.",
-    "status": { "draft": "Taslak", "published": "Yayında", "revoked": "İptal edildi" },
+    "status": {
+      "draft": "Taslak",
+      "published": "Yayında",
+      "revoked": "İptal edildi"
+    },
     "empty": "Henüz rapor yok",
     "emptyHint": "Denetimi tamamlanmış bir şirketten rapor oluşturun.",
     "selectEvidence": "Eklenecek ekran görüntüleri",
@@ -784,7 +816,15 @@
     "color": "Renk",
     "companies": "Şirketler",
     "empty": "Henüz etiket yok",
-    "colors": { "neutral": "Nötr", "lime": "Limon", "blue": "Mavi", "amber": "Kehribar", "red": "Kırmızı", "violet": "Mor", "teal": "Camgöbeği" }
+    "colors": {
+      "neutral": "Nötr",
+      "lime": "Limon",
+      "blue": "Mavi",
+      "amber": "Kehribar",
+      "red": "Kırmızı",
+      "violet": "Mor",
+      "teal": "Camgöbeği"
+    }
   },
   "jobs": {
     "title": "Arka Plan İşleri",
@@ -910,7 +950,13 @@
     "suppressionHint": "Sistem genelinde engelleme. Engellenen kayıtlar fırsat listelerinden ve iletişim dışa aktarımlarından hariç tutulur ve yeniden içe aktarmalardan sonra da engelli kalır. Gizlilik yönetimini destekler ancak tek başına GDPR veya KVKK uyumluluğunu garanti etmez.",
     "addSuppression": "Engelleme ekle",
     "kind": "Tür",
-    "kinds": { "company": "Şirket", "domain": "Alan adı", "email": "E-posta", "phone": "Telefon", "source": "Kaynak kimliği" },
+    "kinds": {
+      "company": "Şirket",
+      "domain": "Alan adı",
+      "email": "E-posta",
+      "phone": "Telefon",
+      "source": "Kaynak kimliği"
+    },
     "removeSuppression": "Kaldır",
     "removalReason": "Kaldırma gerekçesi",
     "showRemoved": "Kaldırılan kayıtları göster",
@@ -987,7 +1033,8 @@
     "changeDetected": "{company} için {count} değişiklik algılandı.",
     "lowDisk": "Disk alanı az: {free_gb} GB boş (rezerv {reserve_gb} GB).",
     "budgetAlert": "{provider} harcaması aylık {budget} USD bütçenin {spent} USD'si.",
-    "adResearchCompleted": "Reklam araştırması tamamlandı."
+    "adResearchCompleted": "{company} için reklam araştırması tamamlandı.",
+    "auditCompleted": "{company} için hızlı denetim tamamlandı."
   },
   "changes": {
     "title": "Algılanan değişiklikler",
@@ -997,7 +1044,10 @@
     "empty": "Kayıtlı değişiklik yok",
     "before": "Önce",
     "after": "Sonra",
-    "significance": { "major": "Önemli", "minor": "Küçük" }
+    "significance": {
+      "major": "Önemli",
+      "minor": "Küçük"
+    }
   },
   "errors": {
     "invalid_website": "Web sitesi URL'si geçersiz.",

@@ -295,16 +295,33 @@ def execute_audit(audit_id: uuid.UUID, progress) -> dict[str, Any]:  # type: ign
         from leadradar.modules.scoring.service import score_company
 
         score_company(db, company, stage="preliminary", audit=audit)
-        if mode == "full":
-            from leadradar.modules.crm.notifications import notify
+        from leadradar.modules.crm.notifications import notify
 
+        if mode == "full":
             notify(db, "review_required", "notifications.reviewRequired", {"company": company.name},
                    link=f"/review/{audit.id}", dedupe_key=f"review:{audit.id}")
+        elif not (audit.context or {}).get("monitoring"):
+            notify(db, "audit_completed", "notifications.auditCompleted", {"company": company.name},
+                   severity="success", link=f"/companies/{company.id}?tab=audit", dedupe_key=f"audit:{audit.id}")
         return {"status": audit.status, "findings": len(merged), "reachable": http.reachable, "blocked": blocked}
+
+
+def _storage_budget_left(db) -> int:  # type: ignore[no-untyped-def]
+    from sqlalchemy import func
+
+    from leadradar.core.app_settings import get_setting
+
+    budget = int(get_setting(db, "limits.max_evidence_storage_mb")) * 1024 * 1024
+    used = db.scalar(select(func.coalesce(func.sum(EvidenceBlob.size_bytes), 0))) or 0
+    return budget - int(used)
 
 
 def _persist_evidence(db, company_id, audit_id, finding_id, ev: EvidenceItem, version, retain: int) -> None:  # type: ignore[no-untyped-def]
     blob_id = None
+    if ev.blob and _storage_budget_left(db) < len(ev.blob):
+        # Evidence storage budget reached: keep the measurement, drop the image.
+        ev.limitations = "Screenshot not stored: evidence storage budget reached."
+        ev.blob = None
     if ev.blob:
         blob_id = _store_blob(db, ev.blob, ev.blob_type or "application/octet-stream", ev.blob_size, retain).id
     db.add(Evidence(company_id=company_id, audit_id=audit_id, finding_id=finding_id, kind=ev.kind, label=ev.label[:200],

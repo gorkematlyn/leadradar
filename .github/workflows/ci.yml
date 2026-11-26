@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: leadradar_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/leadradar_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+      - name: Install
+        run: pip install -e ".[discovery,analysis,dev]" pip-audit
+      - name: Install Chromium for browser-stage tests
+        run: python -m playwright install --with-deps chromium
+      - name: Lint
+        run: ruff check leadradar tests
+      - name: Migrations are in sync with models
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          SESSION_SECRET: ci-session-secret-0123456789-abcdefghijklmnopqrstuvwxyz
+          APP_ENCRYPTION_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
+          APP_ENV: test
+        run: |
+          alembic upgrade head
+          alembic check
+      - name: Tests (unit + integration)
+        run: python -m pytest -q -p no:cacheprovider
+      - name: Dependency vulnerability scan
+        run: pip-audit --skip-editable
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check:i18n
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Dependency vulnerability scan
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    runs-on: ubuntu-24.04
+    needs: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build images (validation only, never pushed)
+        run: |
+          docker build -f infrastructure/docker/web.Dockerfile -t leadradar-web:ci .
+          for target in api discovery analysis; do
+            docker build -f infrastructure/docker/api.Dockerfile --target "$target" -t "leadradar-$target:ci" .
+          done
+      - name: Compose file is valid
+        run: DATABASE_URL=x SESSION_SECRET=x APP_ENCRYPTION_KEY=x docker compose -f compose.yml config -q
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -114,6 +114,11 @@ def handle_research(ctx: JobContext) -> HandlerResult:
         from leadradar.modules.scoring.service import score_company
 
         score_company(db, company)  # type: ignore[arg-type]
+        from leadradar.modules.crm.notifications import notify
+
+        notify(db, "ad_research", "notifications.adResearchCompleted", {"company": company.name},  # type: ignore[union-attr]
+               link=f"/companies/{company.id}?tab=advertising",  # type: ignore[union-attr]
+               dedupe_key=f"ad_research:{company.id}", dedupe_hours=1)  # type: ignore[union-attr]
     return HandlerResult({"status": result.status, "advertisers": len(result.advertisers), "ads": len(result.ads)})
 
 

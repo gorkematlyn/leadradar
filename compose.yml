@@ -1,0 +1,81 @@
+# LeadRadar — Dokploy-compatible Compose file.
+# PostgreSQL is NOT part of this file: create it as a separate Dokploy database service and
+# set DATABASE_URL. Only the `web` service is exposed; assign the domain to it in Dokploy.
+name: leadradar
+
+x-common-env: &common-env
+  DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+  SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
+  APP_ENV: ${APP_ENV:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+  EGRESS_DENY_CIDRS: ${EGRESS_DENY_CIDRS:-}
+  DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+  DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-5}
+
+x-hardening: &hardening
+  restart: unless-stopped
+  stop_grace_period: 30s
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  web:
+    <<: *hardening
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    environment:
+      API_INTERNAL_URL: http://api:8000
+    depends_on: [api]
+    expose: ["3000"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 384M } } }
+    networks: [internal, dokploy-network]
+
+  api:
+    <<: *hardening
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile, target: api }
+    environment:
+      <<: *common-env
+    expose: ["8000"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+    networks: [internal, dokploy-network]
+
+  discovery-worker:
+    <<: *hardening
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile, target: discovery }
+    environment:
+      <<: *common-env
+      WORKER_QUEUES: discovery
+      WORKER_CONCURRENCY: "2"
+    depends_on: [api]
+    # Geofabrik extracts are written to the container's ephemeral filesystem (/tmp/leadradar)
+    # and deleted after import. No persistent application volume is required.
+    deploy: { resources: { limits: { cpus: "1.5", memory: 1536M } } }
+    networks: [internal, dokploy-network]
+
+  analysis-worker:
+    <<: *hardening
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile, target: analysis }
+    environment:
+      <<: *common-env
+      WORKER_QUEUES: analysis
+      WORKER_CONCURRENCY: "2"
+    depends_on: [api]
+    shm_size: "512m"
+    tmpfs: ["/tmp:size=512m"]
+    deploy: { resources: { limits: { cpus: "2.0", memory: 2048M } } }
+    networks: [internal, dokploy-network]
+
+networks:
+  internal:
+  dokploy-network:
+    external: true

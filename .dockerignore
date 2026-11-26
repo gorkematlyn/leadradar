@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/.next
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.osm.pbf
+**/*.part
+.env
+.env.*
+!.env.example
+docs
+.github
+apps/api/tests
+apps/web/public/flags

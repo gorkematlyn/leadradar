@@ -426,7 +426,10 @@
   "audit": {
     "title": "Website audit",
     "history": "Audit history",
-    "mode": { "full": "Full", "quick": "Quick" },
+    "mode": {
+      "full": "Full",
+      "quick": "Quick"
+    },
     "pages": "Audited pages",
     "technologies": "Detected technologies",
     "lighthouse": "Lighthouse (lab measurement)",
@@ -463,7 +466,13 @@
     "approved": "Approved for reports",
     "validate": "Valid",
     "invalidate": "Invalid",
-    "severity": { "critical": "Critical", "high": "High", "medium": "Medium", "low": "Low", "info": "Info" }
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    }
   },
   "result": {
     "passed": "Passed",
@@ -479,7 +488,10 @@
   "tracking": {
     "title": "Tracking technologies",
     "note": "Client-side observation only. 'Not detected' is not proof of absence: tags may wait for consent, be server-side, conditional or regional.",
-    "consentState": { "initial": "Before consent", "after_accept": "After accepting cookies" },
+    "consentState": {
+      "initial": "Before consent",
+      "after_accept": "After accepting cookies"
+    },
     "methods": "Detection methods",
     "evidence": "Evidence",
     "identifiers": "Identifiers (redacted)",
@@ -507,7 +519,10 @@
     "queued": "Research queued",
     "platform": "Platform",
     "lastResearch": "Last research",
-    "method": { "automated": "Automated", "manual": "Manual" },
+    "method": {
+      "automated": "Automated",
+      "manual": "Manual"
+    },
     "manualResearch": "Open official source",
     "recordManual": "Record verified result",
     "advertisers": "Advertisers",
@@ -537,7 +552,11 @@
       "unsupported": "Unsupported",
       "error": "Error"
     },
-    "adStatus": { "active": "Active", "inactive": "Inactive", "unknown": "Unknown" },
+    "adStatus": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "unknown": "Unknown"
+    },
     "platforms": {
       "meta": "Meta",
       "google": "Google",
@@ -546,7 +565,11 @@
       "microsoft": "Microsoft",
       "openai": "ChatGPT"
     },
-    "automation": { "automated": "Automated (official API)", "manual": "Manual research", "unsupported": "Unsupported" }
+    "automation": {
+      "automated": "Automated (official API)",
+      "manual": "Manual research",
+      "unsupported": "Unsupported"
+    }
   },
   "evidence": {
     "title": "Evidence",
@@ -575,7 +598,12 @@
     "reviewAudit": "Review audit",
     "waitingSince": "Waiting since",
     "questions": "Review questions",
-    "answers": { "yes": "Yes", "no": "No", "unknown": "Unknown", "not_applicable": "N/A" },
+    "answers": {
+      "yes": "Yes",
+      "no": "No",
+      "unknown": "Unknown",
+      "not_applicable": "N/A"
+    },
     "note": "Note",
     "validateFindings": "Validate heuristic findings",
     "approveScreenshots": "Approve screenshots for reports",
@@ -694,7 +722,11 @@
     "pdf": "PDF",
     "pdfPending": "PDF is being generated",
     "neverExposed": "Never exposed: internal scores, confidence, CRM status, notes, tags, personal contact data, logs and tracking identifiers.",
-    "status": { "draft": "Draft", "published": "Published", "revoked": "Revoked" },
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "revoked": "Revoked"
+    },
     "empty": "No reports yet",
     "emptyHint": "Create a report from a company with a completed audit.",
     "selectEvidence": "Screenshots to include",
@@ -784,7 +816,15 @@
     "color": "Color",
     "companies": "Companies",
     "empty": "No tags yet",
-    "colors": { "neutral": "Neutral", "lime": "Lime", "blue": "Blue", "amber": "Amber", "red": "Red", "violet": "Violet", "teal": "Teal" }
+    "colors": {
+      "neutral": "Neutral",
+      "lime": "Lime",
+      "blue": "Blue",
+      "amber": "Amber",
+      "red": "Red",
+      "violet": "Violet",
+      "teal": "Teal"
+    }
   },
   "jobs": {
     "title": "Background Jobs",
@@ -910,7 +950,13 @@
     "suppressionHint": "System-wide suppression. Suppressed records are excluded from opportunity lists and contact exports, and stay suppressed after re-imports. This supports privacy management but does not by itself guarantee GDPR or KVKK compliance.",
     "addSuppression": "Add suppression",
     "kind": "Kind",
-    "kinds": { "company": "Company", "domain": "Domain", "email": "Email", "phone": "Phone", "source": "Source ID" },
+    "kinds": {
+      "company": "Company",
+      "domain": "Domain",
+      "email": "Email",
+      "phone": "Phone",
+      "source": "Source ID"
+    },
     "removeSuppression": "Remove",
     "removalReason": "Removal reason",
     "showRemoved": "Show removed entries",
@@ -987,7 +1033,8 @@
     "changeDetected": "{count} changes detected for {company}.",
     "lowDisk": "Low disk space: {free_gb} GB free (reserve {reserve_gb} GB).",
     "budgetAlert": "{provider} spending {spent} USD of {budget} USD monthly budget.",
-    "adResearchCompleted": "Advertising research completed."
+    "adResearchCompleted": "Advertising research completed for {company}.",
+    "auditCompleted": "Quick audit completed for {company}."
   },
   "changes": {
     "title": "Detected changes",
@@ -997,7 +1044,10 @@
     "empty": "No changes recorded",
     "before": "Before",
     "after": "After",
-    "significance": { "major": "Major", "minor": "Minor" }
+    "significance": {
+      "major": "Major",
+      "minor": "Minor"
+    }
   },
   "errors": {
     "invalid_website": "The website URL is not valid.",
