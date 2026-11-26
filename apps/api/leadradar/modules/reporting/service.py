@@ -50,7 +50,7 @@ def publish(db: Session, report: Report, *, expires_at: datetime | None, passwor
             allow_pdf: bool = True) -> tuple[ReportAccessToken, str]:
     """Create a new unguessable public link. Requires an approved version."""
     if report.published_version_id is None:
-        raise ValueError("approve a report version before publishing")
+        raise ValueError("approve_first")
     token = generate_token(32)
     pinned = report.published_version_id if report.mode == "snapshot" else None
     row = ReportAccessToken(report_id=report.id, token_hash=hash_token(token), token_hint=token[:6],

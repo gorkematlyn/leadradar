@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* LeadRadar design tokens. Neutral surfaces dominate; Acid Lime is a rare accent (~3%). */
+:root {
+  --rich-black: #101210;
+  --acid-lime: #c5f35c;
+  --warm-cream: #f4f2e9;
+  --dark-surface: #1b1e1a;
+  --border-dark: #343931;
+  --muted-text: #90968b;
+
+  --background: #f4f2e9;
+  --surface: #fbfaf5;
+  --surface-2: #ecebe2;
+  --foreground: #101210;
+  --muted: #62675d;
+  --border: #d9d6ca;
+  --accent: #101210;
+  --accent-foreground: #f4f2e9;
+  --highlight: #c5f35c;
+  --highlight-foreground: #101210;
+  --ring: #5b7a1e;
+  --success: #2f6b2f;
+  --warning: #8a5a00;
+  --danger: #b42318;
+  --info: #285a8c;
+}
+
+.dark {
+  --background: #101210;
+  --surface: #1b1e1a;
+  --surface-2: #232721;
+  --foreground: #f4f2e9;
+  --muted: #90968b;
+  --border: #343931;
+  --accent: #c5f35c;
+  --accent-foreground: #101210;
+  --highlight: #c5f35c;
+  --highlight-foreground: #101210;
+  --ring: #c5f35c;
+  --success: #8fcf6f;
+  --warning: #e0b453;
+  --danger: #f2877b;
+  --info: #8db8e6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--highlight);
+  color: var(--highlight-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
