@@ -21,7 +21,8 @@ from leadradar.modules.netsafe.policy import BlockedDestination, check_hostname,
 
 
 @pytest.mark.parametrize("ip", ["127.0.0.1", "10.1.2.3", "172.17.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1",
-                                "0.0.0.0", "224.0.0.1"  # noqa: S104, "::1", "fe80::1", "fc00::1", "::ffff:127.0.0.1", "198.18.0.1"])
+                                "0.0.0.0", "224.0.0.1", "::1", "fe80::1", "fc00::1",  # noqa: S104
+                                "::ffff:127.0.0.1", "198.18.0.1"])
 def test_private_and_reserved_ips_blocked(ip):
     assert not is_ip_allowed(ipaddress.ip_address(ip))
 
