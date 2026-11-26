@@ -3,6 +3,7 @@
     leadradar migrate            apply migrations (advisory-locked) and run idempotent seeds
     leadradar create-admin       create the first administrator (interactive or --email/--password-stdin)
     leadradar reset-mfa EMAIL    disable 2FA for an account (recovery)
+    leadradar set-setting K V    change an application setting (V is JSON)
     leadradar serve              start the API (uvicorn)
     leadradar worker QUEUES      start a worker (discovery | analysis)
 """
@@ -116,6 +117,28 @@ def cmd_reset_mfa(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_setting(args: argparse.Namespace) -> int:
+    """Change an application setting from the server (recovery, e.g. a wrong allowed-hosts list)."""
+    import json
+
+    from leadradar.core.activity import record_activity
+    from leadradar.core.app_settings import DEF_BY_KEY, set_setting
+    from leadradar.db.session import session_scope
+
+    if args.key not in DEF_BY_KEY:
+        print("unknown setting; valid keys: " + ", ".join(sorted(DEF_BY_KEY)), file=sys.stderr)
+        return 2
+    try:
+        value = json.loads(args.value)
+    except ValueError:
+        value = args.value
+    with session_scope() as db:
+        set_setting(db, args.key, value)
+        record_activity(db, "settings", "setting_changed_cli", details={"key": args.key})
+    print(f"{args.key} updated")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -147,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("reset-mfa")
     p.add_argument("email")
     p.set_defaults(fn=cmd_reset_mfa)
+    p = sub.add_parser("set-setting")
+    p.add_argument("key")
+    p.add_argument("value", help="JSON value, e.g. '[]' or '\"text\"' or 5")
+    p.set_defaults(fn=cmd_set_setting)
     p = sub.add_parser("serve")
     p.add_argument("--host", default="0.0.0.0")  # noqa: S104 - container interface
     p.add_argument("--port", type=int, default=8000)
