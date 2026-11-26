@@ -3,7 +3,12 @@ import ipaddress
 import pytest
 
 from leadradar.core.logging import redact
-from leadradar.core.origins import HostValidationError, normalize_host, resolve_request_origin, validate_origin
+from leadradar.core.origins import (
+    HostValidationError,
+    normalize_host,
+    resolve_request_origin,
+    validate_origin,
+)
 from leadradar.core.security import (
     decrypt_secret,
     encrypt_secret,
@@ -16,9 +21,18 @@ from leadradar.modules.netsafe.policy import BlockedDestination, check_hostname,
 
 
 @pytest.mark.parametrize("ip", ["127.0.0.1", "10.1.2.3", "172.17.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1",
-                                "0.0.0.0", "224.0.0.1", "::1", "fe80::1", "fc00::1", "::ffff:127.0.0.1", "198.18.0.1"])
+                                "0.0.0.0", "224.0.0.1"  # noqa: S104, "::1", "fe80::1", "fc00::1", "::ffff:127.0.0.1", "198.18.0.1"])
 def test_private_and_reserved_ips_blocked(ip):
     assert not is_ip_allowed(ipaddress.ip_address(ip))
+
+
+def test_test_allowlist_is_inert_outside_test_env(monkeypatch):
+    from leadradar.core.config import get_settings
+    from leadradar.modules.netsafe import policy
+
+    monkeypatch.setattr(get_settings(), "app_env", "production")
+    with pytest.raises(BlockedDestination):
+        policy.check_hostname("127.0.0.1")
 
 
 def test_public_ip_allowed():
@@ -30,7 +44,8 @@ def test_public_ip_allowed():
     "http://169.254.169.254/latest/meta-data", "http://api:8000/", "http://postgres:5432/", "http://example.com:3000/",
     "http://user:pass@example.com/", "http://metadata.google.internal/", "http://foo.internal/", "http://0x7f000001/",
 ])
-def test_ssrf_urls_blocked(url):
+def test_ssrf_urls_blocked(url, monkeypatch):
+    monkeypatch.delenv("LEADRADAR_TEST_ALLOW_HOSTS", raising=False)
     with pytest.raises(BlockedDestination):
         validate_url(url)
 
@@ -40,7 +55,8 @@ def test_valid_public_url_allowed():
     assert t.host == "example.com" and t.port == 443
 
 
-def test_single_label_internal_service_names_blocked():
+def test_single_label_internal_service_names_blocked(monkeypatch):
+    monkeypatch.delenv("LEADRADAR_TEST_ALLOW_HOSTS", raising=False)
     for h in ("db", "leadradar-api", "dokploy"):
         with pytest.raises(BlockedDestination):
             check_hostname(h)

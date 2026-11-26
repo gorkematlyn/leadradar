@@ -130,7 +130,10 @@ def handle_pdf(ctx: JobContext) -> HandlerResult:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True, args=["--disable-dev-shm-usage"])
+        import os
+
+        browser = pw.chromium.launch(headless=True, args=["--disable-dev-shm-usage"],
+                                     executable_path=os.environ.get("CHROME_PATH") or None)
         try:
             context = browser.new_context(java_script_enabled=False, accept_downloads=False)
             page = context.new_page()

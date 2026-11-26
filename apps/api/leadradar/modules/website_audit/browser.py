@@ -138,7 +138,7 @@ def run_browser_stage(url: str, *, desktop: str, mobile: str, timeout_s: int, ma
     sandbox = os.environ.get("LEADRADAR_BROWSER_SANDBOX", "0") == "1"
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True, args=chromium_args(proxy.url), chromium_sandbox=sandbox,
-                                     timeout=30_000)
+                                     timeout=30_000, executable_path=os.environ.get("CHROME_PATH") or None)
         version = browser.version
         try:
             specs = [("mobile", *_viewport(mobile, (390, 844)), True), ("desktop", *_viewport(desktop, (1366, 900)), False)]

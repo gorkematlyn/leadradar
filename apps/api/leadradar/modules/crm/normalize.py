@@ -75,10 +75,13 @@ def normalize_url(raw: str) -> NormalizedUrl | None:
     if "." not in host:
         return None
     bare = host[4:] if host.startswith("www.") else host
-    ext = _extract(bare)
-    if not ext.suffix or not ext.domain:
-        return None
-    registrable = f"{ext.domain}.{ext.suffix}"
+    if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", bare):
+        registrable = bare  # literal IPv4 website: the address is the identity
+    else:
+        ext = _extract(bare)
+        if not ext.suffix or not ext.domain:
+            return None
+        registrable = f"{ext.domain}.{ext.suffix}"
     shared = registrable in SHARED_PLATFORM_DOMAINS or bare in SHARED_PLATFORM_DOMAINS
     query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not TRACKING_PARAMS.match(k)]
     path = re.sub(r"/{2,}", "/", parts.path or "/")

@@ -18,6 +18,9 @@ os.environ.setdefault("SESSION_SECRET", "test-session-secret-0123456789-abcdefgh
 os.environ.setdefault("APP_ENCRYPTION_KEY", base64.urlsafe_b64encode(b"k" * 32).decode())
 os.environ["DATABASE_URL"] = TEST_DB or "postgresql://invalid@127.0.0.1:1/none"
 os.environ.setdefault("WORKER_TMP_DIR", "/tmp/leadradar-test")  # noqa: S108
+os.environ.setdefault("LEADRADAR_TEST_FIXTURE_PORT", "18765")
+os.environ["EGRESS_ALLOWED_PORTS"] = "80,443," + os.environ["LEADRADAR_TEST_FIXTURE_PORT"]
+os.environ["LEADRADAR_TEST_ALLOW_HOSTS"] = "127.0.0.1"
 
 
 def pytest_collection_modifyitems(config, items):  # type: ignore[no-untyped-def]

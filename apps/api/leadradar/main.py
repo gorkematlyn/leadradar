@@ -46,7 +46,7 @@ async def security_and_logging(request: Request, call_next):  # type: ignore[no-
     response = await call_next(request)
     for k, v in API_HEADERS.items():
         response.headers.setdefault(k, v)
-    if not request.url.path.startswith("/public/"):
+    if not request.url.path.startswith("/r/"):
         response.headers.setdefault("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
         response.headers.setdefault("Cache-Control", "no-store")
     response.headers["X-Request-ID"] = rid

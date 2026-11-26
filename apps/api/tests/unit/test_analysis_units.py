@@ -7,7 +7,12 @@ from leadradar.modules.crm.monitoring import diff_snapshots
 from leadradar.modules.discovery.geofabrik import Extract, parse_index, plan_extracts
 from leadradar.modules.discovery.matching import compile_rules, match_industries
 from leadradar.modules.website_audit.engine import content_fingerprint
-from leadradar.modules.website_audit.html_checks import conversion_checks, parse_page, seo_checks, structure_checks
+from leadradar.modules.website_audit.html_checks import (
+    conversion_checks,
+    parse_page,
+    seo_checks,
+    structure_checks,
+)
 from leadradar.modules.website_audit.lighthouse import parse_report
 from leadradar.modules.website_audit.tracking import Observation, TechRule, detect
 from leadradar.seeds.defaults import INDUSTRIES, TRACKING_TECHNOLOGIES

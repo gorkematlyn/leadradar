@@ -36,7 +36,7 @@ from leadradar.modules.reporting.builder import SECTIONS, create_version
 from leadradar.modules.reporting.render import render_message, render_report
 
 router = APIRouter(tags=["reports"])
-public = APIRouter(prefix="/public/r", tags=["public"])
+public = APIRouter(prefix="/r", tags=["public"])
 
 
 def report_view(db: Session, r: Report) -> dict:
