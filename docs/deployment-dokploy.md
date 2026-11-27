@@ -208,20 +208,29 @@ If the build fails, see [Troubleshooting](#troubleshooting).
 ### Step 16. Create the first administrator
 Public registration doesn't exist; the administrator is created on the server.
 
-**Option 1 — Dokploy terminal.** In `leadradar-app`, open the container terminal (in **Logs/Monitoring**, choose the `api` container and click **Terminal**, if your Dokploy version has it), then run:
+**Option 1 — Dokploy terminal.** This guide was checked against Dokploy v0.31.4, where the terminal moved:
+1. Open `leadradar-app` and go to its **Containers** tab (not Logs or Monitoring; those only show details).
+2. Find the **`api`** container in the list.
+3. Click the **three dots (⋯)** on its row and choose **Terminal**.
+4. In the terminal, run:
 ```bash
+cd /app
 python -m leadradar.cli create-admin
 ```
+
+> The terminal opens in `/`, not in `/app`. If you skip `cd /app` on an image built before the fix in step 16a, you get `No module named 'leadradar'`. Images built after that fix work from any directory.
 
 **Option 2 — SSH.** Connect to the server and run:
 ```bash
 docker ps --format '{{.Names}}' | grep api          # find the api container name
-docker exec -it <api-container-name> python -m leadradar.cli create-admin
+docker exec -it <api-container-name> python -m leadradar.cli create-admin   # starts in /app, no cd needed
 ```
 
 Enter your email and a password with at least 12 characters, then confirm it. You'll see `administrator ... created`.
 
 To add more administrators later, run the same command with `--additional`.
+
+**Step 16a. Error `No module named 'leadradar'`?** You are in the wrong directory. Run `cd /app` first, then repeat the command. After you redeploy a version that contains `PYTHONPATH=/app` (commit "Docker: make leadradar importable from any directory"), the `cd` is no longer needed.
 
 ### Step 17. Sign in and secure your account
 1. Sign in at `https://leads.example.com`.
@@ -305,6 +314,7 @@ Keep `APP_ENCRYPTION_KEY` and `SESSION_SECRET` with your backups; restored data 
 | Problem | Likely cause and fix |
 |---|---|
 | The page shows "Bad Gateway" or 502 | The domain points to the wrong service or port. It must be service `web`, port `3000`. |
+| `No module named 'leadradar'` in the terminal | The terminal starts in `/`. Run `cd /app` and repeat the command. |
 | "invalid_host" error | **Allowed hosts** doesn't include the domain you're using. Clear the list from the server: `docker exec -it <api> python -m leadradar.cli set-setting security.allowed_hosts '[]'` |
 | `api` logs show "DATABASE_URL ... " or a connection refused error | Wrong internal host or password in `DATABASE_URL`, or the database service isn't running. |
 | `APP_ENCRYPTION_KEY must decode to 32 bytes` | The key was copied incompletely. Generate a new one in the format from step 5. |

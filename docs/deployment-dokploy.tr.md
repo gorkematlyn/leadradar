@@ -208,20 +208,29 @@ Derleme başarısız olursa [Sorun giderme](#sorun-giderme) bölümüne bakın.
 ### Adım 16. İlk yöneticiyi oluşturun
 Herkese açık kayıt yoktur; yönetici sunucuda oluşturulur.
 
-**Seçenek 1 — Dokploy terminali.** `leadradar-app`'te konteyner terminalini açın (Dokploy sürümünüzde varsa **Logs/Monitoring** içinde `api` konteynerini seçip **Terminal**'e tıklayın) ve şunu çalıştırın:
+**Seçenek 1 — Dokploy terminali.** Bu rehber, terminalin yerinin değiştiği Dokploy v0.31.4'e göre güncellendi:
+1. `leadradar-app`'i açın ve **Containers** sekmesine gidin (Logs veya Monitoring değil; onlar yalnızca ayrıntıları gösterir).
+2. Listeden **`api`** konteynerini bulun.
+3. Satırındaki **üç noktaya (⋯)** tıklayın ve **Terminal**'i seçin.
+4. Açılan terminalde şunu çalıştırın:
 ```bash
+cd /app
 python -m leadradar.cli create-admin
 ```
+
+> Terminal `/app` değil `/` klasöründe açılır. Düzeltme (16a) öncesi derlenmiş bir imajda `cd /app` yapmazsanız `No module named 'leadradar'` hatası alırsınız. Düzeltmeden sonra derlenen imajlar her klasörden çalışır.
 
 **Seçenek 2 — SSH.** Sunucuya bağlanın ve şunları çalıştırın:
 ```bash
 docker ps --format '{{.Names}}' | grep api          # api konteynerinin adını bulun
-docker exec -it <api-konteyner-adı> python -m leadradar.cli create-admin
+docker exec -it <api-konteyner-adı> python -m leadradar.cli create-admin   # /app'te başlar, cd gerekmez
 ```
 
 E-posta adresinizi ve en az 12 karakterlik bir parolayı girin, ardından parolayı tekrarlayın. `administrator ... created` mesajını göreceksiniz.
 
 Daha sonra başka yönetici eklemek için aynı komutu `--additional` ile çalıştırın.
+
+**Adım 16a. `No module named 'leadradar'` hatası mı alıyorsunuz?** Yanlış klasördesiniz. Önce `cd /app` yazın, ardından komutu tekrarlayın. İçinde `PYTHONPATH=/app` bulunan sürümü yeniden dağıttıktan sonra (commit: "Docker: make leadradar importable from any directory") `cd` gerekmez.
 
 ### Adım 17. Giriş yapın ve hesabınızı güvenceye alın
 1. `https://leads.ornek.com` adresinden giriş yapın.
@@ -305,6 +314,7 @@ docker exec -i <db-konteyneri> pg_restore -U leadradar -d leadradar --clean --if
 | Sorun | Muhtemel neden ve çözüm |
 |---|---|
 | Sayfa "Bad Gateway" veya 502 gösteriyor | Alan adı yanlış servise veya porta atanmış. Servis `web`, port `3000` olmalıdır. |
+| Terminalde `No module named 'leadradar'` | Terminal `/` klasöründe açılır. `cd /app` yazıp komutu tekrarlayın. |
 | "invalid_host" hatası | **İzin verilen host'lar** listesinde kullandığınız alan adı yok. Listeyi sunucudan temizleyin: `docker exec -it <api> python -m leadradar.cli set-setting security.allowed_hosts '[]'` |
 | `api` günlüklerinde "DATABASE_URL ..." veya bağlantı reddedildi hatası | `DATABASE_URL` içindeki iç host veya parola yanlış ya da veritabanı servisi çalışmıyor. |
 | `APP_ENCRYPTION_KEY must decode to 32 bytes` | Anahtar eksik kopyalanmış. 5. adımdaki biçimde yeni bir anahtar üretin. |
