@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 import httpx
 
 from leadradar.modules.netsafe.policy import BlockedDestination, validate_url
-from leadradar.modules.netsafe.proxy import get_egress_proxy
+from leadradar.modules.netsafe.proxy import get_bulk_egress_proxy, get_egress_proxy
 
 USER_AGENT = "Mozilla/5.0 (compatible; LeadRadarAudit/1.0; +site-audit)"
 
@@ -47,8 +47,8 @@ class FetchResult:
             return self.body.decode("utf-8", errors="replace")
 
 
-def make_client(timeout: float = 20.0, verify: bool = True) -> httpx.Client:
-    proxy = get_egress_proxy()
+def make_client(timeout: float = 20.0, verify: bool = True, *, bulk: bool = False) -> httpx.Client:
+    proxy = get_bulk_egress_proxy() if bulk else get_egress_proxy()
     return httpx.Client(
         proxy=proxy.url,
         timeout=httpx.Timeout(timeout, connect=10.0),

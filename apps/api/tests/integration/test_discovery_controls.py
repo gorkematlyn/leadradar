@@ -105,6 +105,28 @@ def test_country_progress_cancel_and_clear(auth_client, db):
     _clear_jobs(db)
 
 
+def test_progress_survives_clearing_finished_jobs(auth_client, db):
+    from leadradar.db.models import Job
+
+    _clear_jobs(db)
+    auth_client.patch("/api/countries/LU", json={"enabled": True})
+    parent, children = _make_batch(db, "LU", ["completed", "running", "queued"])
+    parent_id, done_id = parent.id, children[0][0].id
+    # The planning job is "completed" but its regions are still running: it must be kept.
+    auth_client.post("/api/jobs/delete", json={})
+    db.expire_all()
+    assert db.get(Job, parent_id) is not None
+    assert db.get(Job, done_id) is None  # a finished region record is removed
+    # Even if the planning job record is gone, progress is rebuilt from the regions.
+    db.delete(db.get(Job, parent_id))
+    db.commit()
+    lu = {c["iso2"]: c for c in auth_client.get("/api/countries").json()}["LU"]
+    assert lu["import_status"] == "running"
+    assert (lu["progress"]["regions_total"], lu["progress"]["regions_done"]) == (2, 0)
+    assert auth_client.post("/api/discovery/countries/LU/action", json={"action": "cancel"}).json()["affected"] == 2
+    _clear_jobs(db)
+
+
 def test_geo_selection_names_are_unique_with_overwrite(auth_client):
     body = {"name": "Benelux test", "regions": [], "countries": ["NL", "BE"], "industries": []}
     first = auth_client.post("/api/geo-selections", json=body)
@@ -162,6 +184,7 @@ def test_provider_urls_editable_and_kept_by_seed(auth_client, db):
 
 class _Redirecting(BaseHTTPRequestHandler):
     payload = b"PBF-DATA" * 1000
+    drop_first = False  # first full request: send half the body, then close the connection
 
     def log_message(self, *a):  # noqa: D401
         pass
@@ -172,10 +195,19 @@ class _Redirecting(BaseHTTPRequestHandler):
             self.send_header("Location", "/mirror/x.osm.pbf")
             self.end_headers()
         elif self.path == "/mirror/x.osm.pbf":
-            self.send_response(200)
-            self.send_header("Content-Length", str(len(self.payload)))
+            rng = self.headers.get("Range")
+            start = int(rng.split("=")[1].rstrip("-")) if rng else 0
+            body = self.payload[start:]
+            self.send_response(206 if start else 200)
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(self.payload)
+            if type(self).drop_first and not start:
+                type(self).drop_first = False
+                self.wfile.write(body[: len(body) // 2])
+                self.wfile.flush()
+                self.close_connection = True
+                return
+            self.wfile.write(body)
         elif self.path == "/x.osm.pbf.md5":
             self.send_response(302)
             self.send_header("Location", "/mirror/x.osm.pbf.md5")
@@ -202,6 +234,23 @@ def test_geofabrik_download_follows_redirects(tmp_path):
                                 iso2=["IS"], iso3166_2=[], size=len(_Redirecting.payload))
         path = geofabrik.download(ext, str(tmp_path))
         assert open(path, "rb").read() == _Redirecting.payload
+        # A connection dropped mid-file resumes with a Range request inside the same attempt.
+        _Redirecting.drop_first = True
+        os.remove(path)
+        path = geofabrik.download(ext, str(tmp_path))
+        assert open(path, "rb").read() == _Redirecting.payload and not _Redirecting.drop_first
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_bulk_proxy_has_no_byte_cap_but_default_proxy_does():
+    from leadradar.modules.netsafe.proxy import (
+        MAX_BYTES_PER_CONNECTION,
+        get_bulk_egress_proxy,
+        get_egress_proxy,
+    )
+
+    assert get_egress_proxy().max_bytes == MAX_BYTES_PER_CONNECTION
+    bulk = get_bulk_egress_proxy()
+    assert bulk.max_bytes is None and bulk.port != get_egress_proxy().port

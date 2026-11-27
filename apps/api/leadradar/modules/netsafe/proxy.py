@@ -9,6 +9,10 @@ research) is forced through this proxy on 127.0.0.1. For every connection the pr
    defeats DNS rebinding between check and use),
 4. enforces an idle timeout and a byte budget per connection.
 
+The default proxy caps each connection at 60 MB (website audits never need more).
+A separate *bulk* proxy without that cap, but with the same destination checks, is
+used only for Geofabrik extract downloads, which are hundreds of MB to several GB.
+
 Chromium is launched with ``--proxy-server`` pointing here and
 ``--proxy-bypass-list=<-loopback>`` so that even loopback is proxied (and refused).
 """
@@ -30,9 +34,10 @@ MAX_BYTES_PER_CONNECTION = 60 * 1024 * 1024
 
 
 class EgressProxy:
-    def __init__(self, host: str = "127.0.0.1", port: int = 0) -> None:
+    def __init__(self, host: str = "127.0.0.1", port: int = 0, max_bytes: int | None = MAX_BYTES_PER_CONNECTION) -> None:
         self.host = host
         self.port = port
+        self.max_bytes = max_bytes  # None = no per-connection byte budget (bulk downloads)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._server: asyncio.AbstractServer | None = None
         self._thread: threading.Thread | None = None
@@ -123,7 +128,7 @@ class EgressProxy:
             writer.close()
 
     async def _pipe_both(self, cr, cw, ur, uw) -> None:  # type: ignore[no-untyped-def]
-        budget = [MAX_BYTES_PER_CONNECTION]
+        budget = [self.max_bytes if self.max_bytes is not None else float("inf")]
 
         async def pipe(src: asyncio.StreamReader, dst: asyncio.StreamWriter) -> None:
             try:
@@ -146,6 +151,7 @@ class EgressProxy:
 
 
 _proxy: EgressProxy | None = None
+_bulk_proxy: EgressProxy | None = None
 _lock = threading.Lock()
 
 
@@ -156,3 +162,13 @@ def get_egress_proxy() -> EgressProxy:
             _proxy = EgressProxy().start()
             log.info("egress proxy listening", extra={"data": {"port": _proxy.port}})
         return _proxy
+
+
+def get_bulk_egress_proxy() -> EgressProxy:
+    """Same destination checks, no per-connection byte budget. Only for Geofabrik downloads."""
+    global _bulk_proxy
+    with _lock:
+        if _bulk_proxy is None:
+            _bulk_proxy = EgressProxy(max_bytes=None).start()
+            log.info("bulk egress proxy listening", extra={"data": {"port": _bulk_proxy.port}})
+        return _bulk_proxy

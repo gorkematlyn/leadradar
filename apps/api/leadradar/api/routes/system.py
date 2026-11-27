@@ -10,7 +10,7 @@ import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, or_, select, text, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from leadradar.api.deps import current_user
 from leadradar.core.activity import record_activity
@@ -165,7 +165,12 @@ class JobDeleteIn(BaseModel):
 def delete_jobs(body: JobDeleteIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
     """Delete finished job records (with their logs). Queued, running, paused and
     waiting-for-review jobs are never deleted."""
-    q = select(Job).where(Job.status.in_(body.statuses or list(FINISHED)))
+    # A finished job whose sub-jobs are still running is kept: e.g. a country import's
+    # planning job, which progress tracking and per-country controls rely on.
+    child = aliased(Job)
+    has_active_children = select(child.id).where(child.parent_id == Job.id,
+                                                 child.status.in_(["queued", "running", "paused"])).exists()
+    q = select(Job).where(Job.status.in_(body.statuses or list(FINISHED)), ~has_active_children)
     if body.ids:
         q = q.where(Job.id.in_(body.ids))
     rows = db.scalars(q).all()

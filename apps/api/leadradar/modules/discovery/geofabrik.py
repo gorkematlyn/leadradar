@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import shutil
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -147,44 +148,23 @@ def download(
     part = final + ".part"
     if os.path.exists(final):
         os.remove(final)
-    offset = os.path.getsize(part) if os.path.exists(part) else 0
-    headers = {"Range": f"bytes={offset}-"} if offset else {}
-    with make_client(timeout=120) as client:
-        url = extract.pbf_url
-        try:
-            # Geofabrik answers with 302/307 redirects to its mirrors; each hop is validated
-            # against the egress policy before it is followed.
-            for _ in range(6):
-                try:
-                    validate_url(url)
-                except BlockedDestination as exc:
-                    raise GeofabrikError(f"download blocked: {exc.reason}") from exc
-                with client.stream("GET", url, headers=headers) as resp:
-                    if resp.is_redirect and resp.headers.get("location"):
-                        url = urljoin(url, resp.headers["location"])
-                        continue
-                    if resp.status_code == 416:  # already complete
-                        pass
-                    elif resp.status_code == 200 and offset:
-                        offset = 0  # server ignored Range; restart
-                    elif resp.status_code not in (200, 206):
-                        raise GeofabrikError(f"download failed with HTTP {resp.status_code}")
-                    if resp.status_code in (200, 206):
-                        mode = "ab" if resp.status_code == 206 else "wb"
-                        written = offset
-                        with open(part, mode) as fh:
-                            for chunk in resp.iter_bytes(1 << 20):
-                                fh.write(chunk)
-                                written += len(chunk)
-                                if progress:
-                                    progress(written, extract.size)
-                                if should_stop and should_stop():
-                                    raise GeofabrikError("cancelled")
-                    break
-            else:
-                raise GeofabrikError("download failed: too many redirects")
-        except httpx.HTTPError as exc:
-            raise GeofabrikError(f"download interrupted: {exc}") from exc
+    reconnects = 0
+    with make_client(timeout=120, bulk=True) as client:
+        while True:
+            offset = os.path.getsize(part) if os.path.exists(part) else 0
+            try:
+                complete = _download_once(client, extract, part, offset, progress, should_stop)
+            except httpx.HTTPError as exc:
+                # Large files: a dropped connection resumes from the partial file (HTTP Range)
+                # inside the same attempt instead of failing the whole job.
+                grown = (os.path.getsize(part) if os.path.exists(part) else 0) > offset
+                reconnects = 0 if grown else reconnects + 1
+                if reconnects >= MAX_RECONNECTS_WITHOUT_PROGRESS:
+                    raise GeofabrikError(f"download interrupted: {exc}") from exc
+                time.sleep(min(30, 2 * reconnects + 1))
+                continue
+            if complete:
+                break
     expected = fetch_md5(extract.pbf_url)
     if expected:
         h = hashlib.md5()  # noqa: S324 - integrity check against Geofabrik's published MD5
@@ -196,6 +176,51 @@ def download(
             raise GeofabrikError("MD5 checksum mismatch; partial file discarded")
     os.replace(part, final)
     return final
+
+
+MAX_RECONNECTS_WITHOUT_PROGRESS = 5
+
+
+def _download_once(
+    client: httpx.Client, extract: Extract, part: str, offset: int,
+    progress: Callable[[int, int | None], None] | None, should_stop: Callable[[], bool] | None,
+) -> bool:
+    """One HTTP request (following validated redirects), appending to ``part``.
+    Returns True when the file is complete; raises httpx.HTTPError when the connection drops."""
+    headers = {"Range": f"bytes={offset}-"} if offset else {}
+    url = extract.pbf_url
+    # Geofabrik answers with 302/307 redirects to its mirrors; each hop is validated
+    # against the egress policy before it is followed.
+    for _ in range(6):
+        try:
+            validate_url(url)
+        except BlockedDestination as exc:
+            raise GeofabrikError(f"download blocked: {exc.reason}") from exc
+        with client.stream("GET", url, headers=headers) as resp:
+            if resp.is_redirect and resp.headers.get("location"):
+                url = urljoin(url, resp.headers["location"])
+                continue
+            if resp.status_code == 416:  # already complete
+                return True
+            if resp.status_code not in (200, 206):
+                raise GeofabrikError(f"download failed with HTTP {resp.status_code}")
+            mode = "ab" if resp.status_code == 206 and offset else "wb"  # 200 = server ignored Range: restart
+            written = offset if mode == "ab" else 0
+            expected_len = resp.headers.get("content-length")
+            received = 0
+            with open(part, mode) as fh:
+                for chunk in resp.iter_bytes(1 << 20):
+                    fh.write(chunk)
+                    written += len(chunk)
+                    received += len(chunk)
+                    if progress:
+                        progress(written, extract.size)
+                    if should_stop and should_stop():
+                        raise GeofabrikError("cancelled")
+            if expected_len and expected_len.isdigit() and received < int(expected_len):
+                raise httpx.RemoteProtocolError("connection closed before the file was complete")
+            return True
+    raise GeofabrikError("download failed: too many redirects")
 
 
 def cleanup_abandoned(directory: str, max_age_hours: float = 24) -> int:

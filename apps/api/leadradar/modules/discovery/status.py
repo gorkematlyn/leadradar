@@ -9,7 +9,8 @@ retrying individual jobs is always reflected correctly.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import select, update
@@ -79,15 +80,42 @@ def _derive(parent: Job, children: list[Job]) -> dict[str, Any]:
     }
 
 
+def _orphan_batches(db: Session, iso2: str | None) -> dict[str, list[Job]]:
+    """Region jobs whose planning job record was deleted (``parent_id`` set to NULL).
+    Regions planned together are created within seconds of each other, so the latest
+    group per country is the regions created close to its newest region."""
+    q = select(Job).where(Job.type == EXTRACT_JOB, Job.parent_id.is_(None))
+    if iso2:
+        q = q.where(Job.payload["country"].astext == iso2.upper())
+    by_country: dict[str, list[Job]] = {}
+    for j in db.scalars(q.order_by(Job.created_at.desc())):
+        c = str((j.payload or {}).get("country", "")).upper()
+        if c:
+            by_country.setdefault(c, []).append(j)
+    out: dict[str, list[Job]] = {}
+    for c, jobs in by_country.items():
+        newest = jobs[0].created_at
+        group = [j for j in jobs if newest - j.created_at <= timedelta(minutes=10)]
+        out[c] = sorted(group, key=lambda j: (j.priority, j.created_at))
+    return out
+
+
 def country_progress(db: Session, iso2: str | None = None) -> dict[str, dict[str, Any]]:
     """Latest import batch per country: status, region counts, byte progress."""
     parents = _latest_country_jobs(db, iso2)
-    if not parents:
-        return {}
     children: dict[uuid.UUID, list[Job]] = {p.id: [] for p in parents.values()}
-    for c in db.scalars(select(Job).where(Job.parent_id.in_(list(children))).order_by(Job.priority, Job.created_at)):
-        children[c.parent_id].append(c)  # type: ignore[index]
-    return {iso: _derive(p, children[p.id]) for iso, p in parents.items()}
+    if children:
+        for c in db.scalars(select(Job).where(Job.parent_id.in_(list(children))).order_by(Job.priority, Job.created_at)):
+            children[c.parent_id].append(c)  # type: ignore[index]
+    out = {iso: _derive(p, children[p.id]) for iso, p in parents.items()}
+    for iso, jobs in _orphan_batches(db, iso2).items():
+        parent = parents.get(iso)
+        if parent is not None and parent.created_at >= max(j.created_at for j in jobs):
+            continue  # a newer complete batch exists
+        stand_in = SimpleNamespace(id=jobs[0].id, status="completed", error=None,
+                                   created_at=min(j.created_at for j in jobs))
+        out[iso] = _derive(stand_in, jobs)  # type: ignore[arg-type]
+    return out
 
 
 def display_status(country: Country, progress: dict[str, Any] | None) -> str:
@@ -129,9 +157,15 @@ def on_job_retried(db: Session, job: Job) -> None:
 def country_action(db: Session, iso2: str, action: str) -> int:
     """cancel / pause / resume every job of the country's latest import batch."""
     parent = _latest_country_jobs(db, iso2).get(iso2.upper())
-    if parent is None:
+    orphans = _orphan_batches(db, iso2).get(iso2.upper(), [])
+    if parent is not None:
+        jobs = [parent, *db.scalars(select(Job).where(Job.parent_id == parent.id))]
+        if orphans and max(j.created_at for j in orphans) > parent.created_at:
+            jobs = orphans
+    elif orphans:
+        jobs = orphans
+    else:
         return 0
-    jobs = [parent, *db.scalars(select(Job).where(Job.parent_id == parent.id))]
     affected = 0
     for j in jobs:
         before = j.status

@@ -32,7 +32,11 @@ CMD ["sh", "-c", "python -m leadradar.cli migrate && exec python -m leadradar.cl
 
 # ---------------------------------------------------------------------------
 FROM python-base AS discovery
-RUN pip install -r /tmp/build/discovery.txt
+# pyosmium (OSM parser) links against the system expat library, which the slim base image lacks.
+RUN apt-get update && apt-get install -y --no-install-recommends libexpat1 \
+ && rm -rf /var/lib/apt/lists/*
+RUN pip install -r /tmp/build/discovery.txt \
+ && python -c "import osmium, osmium.osm; print('pyosmium', osmium.__version__ if hasattr(osmium, '__version__') else 'ok')"
 COPY --chown=app:app apps/api/ /app/
 RUN mkdir -p /tmp/leadradar && chown app:app /tmp/leadradar
 USER app

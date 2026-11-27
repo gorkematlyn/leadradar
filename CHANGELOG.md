@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+### Fixed
+- **Every Geofabrik import failed.** Two causes:
+  - The built-in egress proxy closed every connection after 60 MB (a limit meant for website audits), so larger extracts never finished downloading. Geofabrik downloads now use a separate proxy with the same destination checks but no size cap.
+  - The discovery worker image was missing the system library `libexpat1`, so the OSM parser could not start (`ImportError: libexpat.so.1`). The image now installs it, and the build fails if the parser cannot be imported.
+- A dropped download connection now resumes from the partial file within the same attempt, instead of using up a retry.
+- **Import progress disappeared after "Clear finished jobs".** A country's planning job is finished while its regions are still running; such jobs are no longer deleted. Progress is also rebuilt from the region jobs if the planning job record is already gone.
+
 ## 0.2.0
 
 ### Fixed
