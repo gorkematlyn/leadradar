@@ -44,6 +44,9 @@ WORKDIR /opt/tools
 RUN npm install --omit=dev --no-audit --no-fund lighthouse@13.6.0 axe-core@4.14.1 && npm cache clean --force
 
 FROM python-base AS analysis
+# Playwright's bundled Node needs libatomic, which the slim base image lacks.
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+ && rm -rf /var/lib/apt/lists/*
 RUN pip install -r /tmp/build/analysis.txt \
  && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright python -m playwright install --with-deps chromium \
  && rm -rf /var/lib/apt/lists/*
