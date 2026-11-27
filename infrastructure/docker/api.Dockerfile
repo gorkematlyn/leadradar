@@ -4,7 +4,8 @@ ARG PYTHON_IMAGE=python:3.13-slim-bookworm
 ARG NODE_IMAGE=node:22-bookworm-slim
 
 FROM ${PYTHON_IMAGE} AS python-base
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/app
 RUN groupadd --system --gid 10001 app && useradd --system --uid 10001 --gid app --home /app --shell /usr/sbin/nologin app
 WORKDIR /app
 
