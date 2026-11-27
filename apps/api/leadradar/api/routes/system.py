@@ -58,12 +58,14 @@ def now() -> datetime:
 
 @router.get("/dashboard")
 def dashboard(db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
-    base = select(func.count()).select_from(Company).where(Company.merged_into_id.is_(None), Company.archived.is_(False))
+    base = select(func.count()).select_from(Company).where(Company.merged_into_id.is_(None), Company.archived.is_(False),
+                                                          Company.deleted_at.is_(None))
     total = db.scalar(base)
     qualified = db.scalar(base.where(Company.crm_status.in_(["qualified", "shortlisted", "contacted", "replied",
                                                              "meeting", "proposal_sent"])))
     high = db.scalar(base.where(Company.score_classification == "high_priority", Company.do_not_contact.is_(False)))
-    review = db.scalar(select(func.count()).select_from(WebsiteAudit).where(WebsiteAudit.status == "action_required"))
+    review = db.scalar(select(func.count()).select_from(WebsiteAudit).join(Company, Company.id == WebsiteAudit.company_id)
+                       .where(WebsiteAudit.status == "action_required", Company.deleted_at.is_(None)))
     completed = db.scalar(select(func.count()).select_from(WebsiteAudit).where(WebsiteAudit.status == "completed"))
     running = db.scalar(select(func.count()).select_from(Job).where(Job.status == "running"))
     queued = db.scalar(select(func.count()).select_from(Job).where(Job.status == "queued"))
@@ -76,7 +78,7 @@ def dashboard(db: Session = Depends(get_db), _: User = Depends(current_user)) ->
             pass
     failed_24h = db.scalar(select(func.count()).select_from(Job).where(Job.status.in_(["failed", "dead"]),
                                                                         Job.finished_at >= since))
-    top = db.scalars(select(Company).where(Company.merged_into_id.is_(None), Company.archived.is_(False),
+    top = db.scalars(select(Company).where(Company.merged_into_id.is_(None), Company.archived.is_(False), Company.deleted_at.is_(None),
                                            Company.do_not_contact.is_(False), Company.effective_lead_score.isnot(None))
                      .order_by(Company.effective_lead_score.desc(), Company.confidence_score.desc().nulls_last()).limit(8)).all()
     recent = db.execute(select(CrmActivity, Company.name).join(Company, Company.id == CrmActivity.company_id)
@@ -874,23 +876,148 @@ def recalc_all(profile_key: str | None = None, db: Session = Depends(get_db), us
 
 @router.get("/crm/statuses")
 def crm_statuses(db: Session = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
-    counts = dict(db.execute(select(Company.crm_status, func.count()).where(Company.merged_into_id.is_(None))
+    counts = dict(db.execute(select(Company.crm_status, func.count()).where(Company.merged_into_id.is_(None), Company.deleted_at.is_(None))
                              .group_by(Company.crm_status)).all())
     return [{"key": s.key, "name_en": s.name_en, "name_tr": s.name_tr, "sort_order": s.sort_order,
-             "is_terminal": s.is_terminal, "show_in_pipeline": s.show_in_pipeline, "count": counts.get(s.key, 0)}
+             "is_terminal": s.is_terminal, "show_in_pipeline": s.show_in_pipeline, "is_system": s.is_system,
+             "count": counts.get(s.key, 0)}
             for s in db.scalars(select(CrmStatus).order_by(CrmStatus.sort_order))]
+
+
+class CrmStatusIn(BaseModel):
+    name_en: str = Field(min_length=1, max_length=64)
+    name_tr: str = Field(min_length=1, max_length=64)
+    is_terminal: bool = False
+    show_in_pipeline: bool = True
+
+
+def _status_key(db: Session, name: str) -> str:
+    import re
+    import unicodedata
+
+    base = unicodedata.normalize("NFKD", name.replace("ı", "i").replace("İ", "I")).encode("ascii", "ignore").decode()
+    base = re.sub(r"[^a-z0-9]+", "_", base.lower()).strip("_")[:24] or "status"
+    key, n = base, 2
+    while db.get(CrmStatus, key) is not None:
+        key, n = f"{base}_{n}"[:32], n + 1
+    return key
+
+
+@router.post("/crm/statuses")
+def create_crm_status(body: CrmStatusIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    last = db.scalar(select(func.max(CrmStatus.sort_order))) or 0
+    s = CrmStatus(key=_status_key(db, body.name_en), name_en=body.name_en.strip(), name_tr=body.name_tr.strip(),
+                  is_terminal=body.is_terminal, show_in_pipeline=body.show_in_pipeline, sort_order=last + 1)
+    db.add(s)
+    db.flush()
+    record_activity(db, "settings", "crm_status_created", user_id=user.id, entity_id=s.key)
+    return {"key": s.key}
+
+
+@router.patch("/crm/statuses/{key}")
+def update_crm_status(key: str, body: CrmStatusIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    s = db.get(CrmStatus, key)
+    if s is None:
+        raise HTTPException(404, "not_found")
+    s.name_en, s.name_tr = body.name_en.strip(), body.name_tr.strip()
+    s.is_terminal, s.show_in_pipeline = body.is_terminal, body.show_in_pipeline
+    record_activity(db, "settings", "crm_status_updated", user_id=user.id, entity_id=key)
+    return {"ok": True}
+
+
+class ReorderIn(BaseModel):
+    keys: list[str] = Field(max_length=100)
+
+
+@router.post("/crm/statuses/reorder")
+def reorder_crm_statuses(body: ReorderIn, db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
+    rows = {s.key: s for s in db.scalars(select(CrmStatus))}
+    if set(body.keys) != set(rows):
+        raise HTTPException(400, "invalid_order")
+    for i, k in enumerate(body.keys, start=1):
+        rows[k].sort_order = i
+    return {"ok": True}
+
+
+@router.delete("/crm/statuses/{key}")
+def delete_crm_status(key: str, move_to: str | None = None, db: Session = Depends(get_db),
+                      user: User = Depends(current_user)) -> dict:
+    """Delete a status. Companies in it are moved to ``move_to`` (required when there are any)."""
+    s = db.get(CrmStatus, key)
+    if s is None:
+        raise HTTPException(404, "not_found")
+    if s.is_system:
+        raise HTTPException(409, "status_is_system")
+    used = db.scalar(select(func.count()).select_from(Company).where(Company.crm_status == key)) or 0
+    if used:
+        target = db.get(CrmStatus, move_to) if move_to else None
+        if target is None or target.key == key or target.key == "do_not_contact":
+            raise HTTPException(409, "status_in_use")
+        db.execute(update(Company).where(Company.crm_status == key).values(crm_status=target.key))
+        if target.key == "archived":
+            db.execute(update(Company).where(Company.crm_status == "archived").values(archived=True))
+    db.delete(s)
+    record_activity(db, "settings", "crm_status_deleted", user_id=user.id, entity_id=key,
+                    details={"moved": used, "to": move_to})
+    return {"moved": used}
 
 
 @router.get("/crm/pipeline")
 def pipeline(per_column: int = Query(30, le=100), db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
     cols: dict[str, list[dict]] = {}
     for s in db.scalars(select(CrmStatus).where(CrmStatus.show_in_pipeline.is_(True)).order_by(CrmStatus.sort_order)):
-        rows = db.scalars(select(Company).where(Company.crm_status == s.key, Company.merged_into_id.is_(None),
+        rows = db.scalars(select(Company).where(Company.crm_status == s.key, Company.merged_into_id.is_(None), Company.deleted_at.is_(None),
                                                 Company.archived.is_(False))
                           .order_by(Company.updated_at.desc()).limit(per_column)).all()
         cols[s.key] = [{"id": str(c.id), "name": c.name, "score": c.effective_lead_score, "country": c.country_iso2,
                         "follow_up_at": c.follow_up_at, "classification": c.score_classification} for c in rows]
     return {"columns": cols}
+
+
+@router.get("/crm/pipeline/table")
+def pipeline_table(page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200), status: str | None = None,
+                   db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
+    """Pipeline as a sales table: status, opportunities (highest first), lead score, report and
+    advertising summaries. Companies in statuses hidden from the pipeline are not listed."""
+    from leadradar.db.models import AdvertisingResearchRun, Report
+
+    keys = [s.key for s in db.scalars(select(CrmStatus).where(CrmStatus.show_in_pipeline.is_(True)))]
+    if status:
+        keys = [k for k in keys if k == status]
+    base = select(Company).where(Company.crm_status.in_(keys), Company.merged_into_id.is_(None),
+                                 Company.archived.is_(False), Company.deleted_at.is_(None))
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    rows = db.scalars(base.order_by(Company.effective_lead_score.desc().nulls_last(), Company.name)
+                      .offset((page - 1) * page_size).limit(page_size)).all()
+    ids = [c.id for c in rows]
+    reports: dict[uuid.UUID, list[Report]] = {i: [] for i in ids}
+    for r in db.scalars(select(Report).where(Report.company_id.in_(ids)).order_by(Report.updated_at.desc())):
+        reports[r.company_id].append(r)
+    # Advertising: the latest research per company and platform.
+    ads: dict[uuid.UUID, dict[str, int]] = {i: {} for i in ids}
+    seen: set[tuple[uuid.UUID, str]] = set()
+    for run in db.scalars(select(AdvertisingResearchRun).where(AdvertisingResearchRun.company_id.in_(ids))
+                          .order_by(AdvertisingResearchRun.created_at.desc())):
+        if (run.company_id, run.platform) in seen or run.status in ("not_checked", "error", "rate_limited"):
+            continue
+        seen.add((run.company_id, run.platform))
+        if run.result_count:
+            ads[run.company_id][run.platform] = run.result_count
+    items = []
+    for c in rows:
+        services = sorted(((k, v) for k, v in (c.service_scores or {}).items() if v.get("score", 0) >= 30),
+                          key=lambda kv: -kv[1]["score"])
+        rs = reports[c.id]
+        items.append({
+            "id": str(c.id), "name": c.name, "country": c.country_iso2, "crm_status": c.crm_status,
+            "score": c.effective_lead_score, "classification": c.score_classification, "follow_up_at": c.follow_up_at,
+            "services": [{"key": k, "score": v["score"], "provisional": v.get("provisional", False)} for k, v in services],
+            "reports": {"count": len(rs), "latest": [{"id": str(r.id), "title": r.title, "status": r.status,
+                                                      "updated_at": r.updated_at} for r in rs[:5]]},
+            "ads": {"total": sum(ads[c.id].values()),
+                    "platforms": [{"platform": p, "count": n} for p, n in sorted(ads[c.id].items(), key=lambda x: -x[1])]},
+        })
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
 
 
 @router.get("/review-templates")

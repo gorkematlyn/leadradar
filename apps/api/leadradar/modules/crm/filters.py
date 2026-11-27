@@ -80,7 +80,7 @@ def _tag_ids_subq(values: list[str]):  # type: ignore[no-untyped-def]
 
 
 def apply_filter(q: Select, f: CompanyFilter) -> Select:
-    conds = [Company.merged_into_id.is_(None)]
+    conds = [Company.merged_into_id.is_(None), Company.deleted_at.is_(None)]
     if f.q:
         term = f"%{f.q.strip().lower()}%"
         conds.append(or_(func.lower(Company.name).like(term), Company.canonical_domain.like(term),

@@ -242,6 +242,8 @@ def upsert_record(db: Session, rec: RecordInput, suppression: dict[str, set[str]
         changed = True
     if rec.website:
         apply_website(db, company, rec.website, rec.source)
+    if not company.website_url and company.website_status == "unverified":
+        company.website_status = "not_found"  # the source gave no usable website address
     company.normalized_name = normalize_name(company.name)[:300]
     ind_ids = _industry_ids(db, rec.industry_keys)
     if ind_ids:

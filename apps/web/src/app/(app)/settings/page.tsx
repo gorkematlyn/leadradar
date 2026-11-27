@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Suspense, useState } from "react";
@@ -13,6 +13,7 @@ import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { Badge, Callout, Card, CardHeader, Checkbox, InfoTip, Progress, Switch, Tooltip } from "@/components/ui/misc";
 import { Dialog, Tabs } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
+import { type CrmStatusItem, useCrmStatuses, useLocalizedName } from "@/hooks/use-catalog";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
 import { fmtBytes } from "@/lib/utils";
@@ -261,6 +262,95 @@ function ScoringTab() {
   );
 }
 
+function CrmStatusesTab() {
+  const t = useTranslations();
+  const act = useAct();
+  const { data } = useCrmStatuses();
+  const name = useLocalizedName();
+  const [add, setAdd] = useState({ name_en: "", name_tr: "" });
+  const [remove, setRemove] = useState<{ key: string; label: string; count: number; moveTo: string } | null>(null);
+  const keys = ["crm-statuses", "pipeline", "pipeline-table", "company-facets", "companies"];
+  const save = (s: CrmStatusItem, patch: Partial<CrmStatusItem>) => {
+    const next = { name_en: s.name_en, name_tr: s.name_tr, is_terminal: s.is_terminal, show_in_pipeline: s.show_in_pipeline, ...patch };
+    if (!next.name_en.trim() || !next.name_tr.trim()) return;
+    return act(() => api(`/crm/statuses/${s.key}`, { method: "PATCH", body: next }), keys);
+  };
+  const move = (i: number, dir: -1 | 1) => {
+    if (!data) return;
+    const order = data.map((s) => s.key);
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    act(() => api("/crm/statuses/reorder", { body: { keys: order } }), keys, "");
+  };
+  return (
+    <div className="grid gap-4">
+      <Callout>{t("settings.crm.help")}</Callout>
+      <Card>
+        <CardHeader title={t("settings.tabs.crmStatuses")} />
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-[13px]">
+            <thead><tr className="border-b border-border text-left text-[12px] text-muted">
+              <th className="w-16 px-4 py-2 font-medium">{t("settings.crm.order")}</th>
+              <th className="px-2 py-2 font-medium">{t("tags.nameEn")}</th>
+              <th className="px-2 py-2 font-medium">{t("tags.nameTr")}</th>
+              <th className="px-2 py-2 font-medium"><span className="inline-flex items-center gap-1">{t("settings.crm.inPipeline")}<InfoTip>{t("settings.crm.inPipelineInfo")}</InfoTip></span></th>
+              <th className="px-2 py-2 font-medium"><span className="inline-flex items-center gap-1">{t("settings.crm.closing")}<InfoTip>{t("settings.crm.closingInfo")}</InfoTip></span></th>
+              <th className="px-2 py-2 text-right font-medium">{t("nav.companies")}</th>
+              <th className="px-4 py-2" />
+            </tr></thead>
+            <tbody>
+              {data?.map((s, i) => (
+                <tr key={s.key} className="border-b border-border last:border-0">
+                  <td className="px-4 py-1.5">
+                    <span className="flex gap-0.5">
+                      <Button size="icon-sm" variant="ghost" aria-label="up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp /></Button>
+                      <Button size="icon-sm" variant="ghost" aria-label="down" disabled={i === data.length - 1} onClick={() => move(i, 1)}><ArrowDown /></Button>
+                    </span>
+                  </td>
+                  <td className="px-2 py-1.5"><Input className="h-7" defaultValue={s.name_en} maxLength={64} onBlur={(e) => e.target.value.trim() !== s.name_en && save(s, { name_en: e.target.value.trim() })} /></td>
+                  <td className="px-2 py-1.5"><Input className="h-7" defaultValue={s.name_tr} maxLength={64} onBlur={(e) => e.target.value.trim() !== s.name_tr && save(s, { name_tr: e.target.value.trim() })} /></td>
+                  <td className="px-2 py-1.5"><Switch checked={s.show_in_pipeline} label={t("settings.crm.inPipeline")} onCheckedChange={(v) => save(s, { show_in_pipeline: v })} /></td>
+                  <td className="px-2 py-1.5"><Switch checked={s.is_terminal} label={t("settings.crm.closing")} onCheckedChange={(v) => save(s, { is_terminal: v })} /></td>
+                  <td className="num px-2 py-1.5 text-right">{s.count}</td>
+                  <td className="px-4 py-1.5 text-right">
+                    {s.is_system ? (
+                      <Tooltip content={t("settings.crm.systemInfo")}><span><Badge>{t("settings.crm.system")}</Badge></span></Tooltip>
+                    ) : (
+                      <Button size="icon-sm" variant="ghost" aria-label={t("common.delete")}
+                        onClick={() => setRemove({ key: s.key, label: name(s), count: s.count, moveTo: data.find((x) => x.key !== s.key && x.key !== "do_not_contact")?.key ?? "new" })}><Trash2 /></Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <form className="flex flex-wrap items-end gap-2 border-t border-border p-4" onSubmit={async (e) => {
+          e.preventDefault();
+          if (await act(() => api("/crm/statuses", { body: { ...add, is_terminal: false, show_in_pipeline: true } }), keys)) setAdd({ name_en: "", name_tr: "" });
+        }}>
+          <Field label={t("tags.nameEn")} className="min-w-48 flex-1"><Input value={add.name_en} maxLength={64} onChange={(e) => setAdd({ ...add, name_en: e.target.value })} /></Field>
+          <Field label={t("tags.nameTr")} className="min-w-48 flex-1"><Input value={add.name_tr} maxLength={64} onChange={(e) => setAdd({ ...add, name_tr: e.target.value })} /></Field>
+          <Button type="submit" variant="primary" disabled={!add.name_en.trim() || !add.name_tr.trim()}><Plus />{t("settings.crm.add")}</Button>
+        </form>
+      </Card>
+      <Dialog open={remove !== null} onOpenChange={(v) => !v && setRemove(null)} title={t("settings.crm.deleteTitle", { name: remove?.label ?? "" })}
+        footer={<><Button onClick={() => setRemove(null)}>{t("common.cancel")}</Button><Button variant="danger" onClick={async () => {
+          if (remove && await act(() => api(`/crm/statuses/${remove.key}`, { method: "DELETE", query: { move_to: remove.count ? remove.moveTo : undefined } }), keys)) setRemove(null);
+        }}>{t("common.delete")}</Button></>}>
+        {remove ? (remove.count ? (
+          <Field label={t("settings.crm.moveCompanies", { count: remove.count })}>
+            <NativeSelect value={remove.moveTo} onChange={(e) => setRemove({ ...remove, moveTo: e.target.value })}>
+              {data?.filter((x) => x.key !== remove.key && x.key !== "do_not_contact").map((x) => <option key={x.key} value={x.key}>{name(x)}</option>)}
+            </NativeSelect>
+          </Field>
+        ) : <p className="text-[13px] text-muted">{t("settings.crm.deleteEmpty")}</p>) : null}
+      </Dialog>
+    </div>
+  );
+}
+
 function AuditRulesTab() {
   const t = useTranslations();
   const locale = useLocale();
@@ -481,7 +571,7 @@ function HealthTab() {
   );
 }
 
-const TABS = ["general", "account", "scoring", "auditRules", "review", "resources", "retention", "suppression", "activity", "health"] as const;
+const TABS = ["general", "account", "scoring", "crmStatuses", "auditRules", "review", "resources", "retention", "suppression", "activity", "health"] as const;
 
 function SettingsView() {
   const t = useTranslations("settings");
@@ -496,6 +586,7 @@ function SettingsView() {
         {tab === "general" ? <GeneralTab /> : null}
         {tab === "account" ? <AccountTab /> : null}
         {tab === "scoring" ? <ScoringTab /> : null}
+        {tab === "crmStatuses" ? <CrmStatusesTab /> : null}
         {tab === "auditRules" ? <AuditRulesTab /> : null}
         {tab === "review" ? <ReviewTemplatesTab /> : null}
         {tab === "resources" ? <ResourcesTab /> : null}

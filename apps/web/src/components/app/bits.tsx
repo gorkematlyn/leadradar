@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Badge, Tooltip } from "@/components/ui/misc";
-import { useCountries, useIndustries, useLocalizedName } from "@/hooks/use-catalog";
+import { useCountries, useCrmStatuses, useIndustries, useLocalizedName } from "@/hooks/use-catalog";
 import { cn } from "@/lib/utils";
 
 export function Flag({ code, className }: { code: string | null | undefined; className?: string }) {
@@ -63,9 +63,11 @@ export function AnalysisBadge({ status }: { status: string }) {
 }
 
 export function CrmBadge({ status }: { status: string }) {
-  const t = useTranslations("crm.status");
+  const { data } = useCrmStatuses();
+  const name = useLocalizedName();
+  const s = data?.find((x) => x.key === status);
   const tone = status === "won" ? "success" : status === "lost" || status === "do_not_contact" ? "danger" : status === "new" ? "neutral" : "solid";
-  return <Badge tone={tone}>{t.has(status) ? t(status) : status}</Badge>;
+  return <Badge tone={tone}>{s ? name(s) : status}</Badge>;
 }
 
 export function WebsiteStatusBadge({ status }: { status: string }) {

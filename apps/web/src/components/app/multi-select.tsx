@@ -13,6 +13,7 @@ export interface Option {
   value: string;
   label: string;
   icon?: React.ReactNode;
+  count?: number; // how many records have this value (shown on the right)
 }
 
 export function MultiSelect({ label, options, value, onChange, searchable, className }: {
@@ -51,7 +52,8 @@ export function MultiSelect({ label, options, value, onChange, searchable, class
             <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] hover:bg-surface-2">
               <Checkbox label={o.label} checked={value.includes(o.value)} onCheckedChange={() => toggle(o.value)} />
               {o.icon}
-              <span className="truncate">{o.label}</span>
+              <span className="min-w-0 flex-1 truncate">{o.label}</span>
+              {o.count !== undefined ? <span className="num shrink-0 text-[11px] text-muted">{o.count}</span> : null}
             </label>
           </li>
         ))}

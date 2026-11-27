@@ -44,7 +44,7 @@ def regions(db: Session = Depends(get_db), _: User = Depends(current_user)) -> l
 
 @router.get("/countries")
 def countries(db: Session = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
-    counts = dict(db.execute(select(Company.country_iso2, func.count()).where(Company.merged_into_id.is_(None))
+    counts = dict(db.execute(select(Company.country_iso2, func.count()).where(Company.merged_into_id.is_(None), Company.deleted_at.is_(None))
                              .group_by(Company.country_iso2)).all())
     progress = country_progress(db)
     return [{"iso2": c.iso2, "iso3": c.iso3, "name_en": c.name_en, "name_tr": c.name_tr, "region": c.region_code,
@@ -133,6 +133,7 @@ class ImportIn(BaseModel):
     countries: list[str] = Field(min_length=1, max_length=50)
     industries: list[str] | None = None
     force: bool = False
+    include_without_website: bool = False  # by default places without a website are not imported
 
 
 @router.post("/discovery/imports")
@@ -143,7 +144,8 @@ def start_imports(body: ImportIn, db: Session = Depends(get_db), user: User = De
         if c is None or not c.enabled:
             raise HTTPException(400, f"country_disabled:{iso}")
         j = queue.enqueue(db, "geofabrik_country_import", f"Import {c.name_en}",
-                          {"country": c.iso2, "industries": body.industries, "force": body.force},
+                          {"country": c.iso2, "industries": body.industries, "force": body.force,
+                           "include_without_website": body.include_without_website},
                           idempotency_key=f"geofabrik_country:{c.iso2}", created_by=user.id)
         c.import_status = "queued"
         jobs.append(str(j.id))

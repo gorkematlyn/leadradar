@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, Pencil, Save, Search, Trash2 } from "lucide-react";
+import { Building2, Pencil, Radar, Save, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -43,6 +43,8 @@ export default function DiscoveryPage() {
   const [q, setQ] = useState("");
   const [enabledOnly, setEnabledOnly] = useState(false);
   const [force, setForce] = useState(false);
+  const [withoutSite, setWithoutSite] = useState(false);
+  const [started, setStarted] = useState<{ countries: number; industries: number } | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [overwrite, setOverwrite] = useState<string | null>(null);
@@ -73,8 +75,10 @@ export default function DiscoveryPage() {
     const target = selected.filter((iso) => countries?.find((c) => c.iso2 === iso)?.enabled);
     if (!target.length) return toast.error(t("discovery.noCountriesSelected"));
     try {
-      const res = await api<{ jobs: string[] }>("/discovery/imports", { body: { countries: target, industries: inds.length ? inds : null, force } });
-      toast.success(t("discovery.importQueued", { count: res.jobs.length }));
+      await api<{ jobs: string[] }>("/discovery/imports", {
+        body: { countries: target, industries: inds.length ? inds : null, force, include_without_website: withoutSite },
+      });
+      setStarted({ countries: target.length, industries: inds.length });
       refresh("countries", "imports", "discovery-progress");
     } catch (e) {
       toast.error(err(e));
@@ -137,7 +141,7 @@ export default function DiscoveryPage() {
   return (
     <>
       <PageHeader title={t("discovery.title")} description={t("discovery.subtitle")}
-        actions={<><Button size="sm" onClick={openSave}><Save />{t("discovery.saveSelection")}</Button><Button size="sm" variant="primary" onClick={start}><Download />{t("discovery.startImport")}</Button></>} />
+        actions={<><Button size="sm" onClick={openSave}><Save />{t("discovery.saveSelection")}</Button><Button size="sm" variant="primary" onClick={start}><Radar />{t("discovery.startDiscovery")}</Button></>} />
       <Callout title={t("discovery.explainTitle")} className="mb-3">
         <ul className="grid gap-0.5">
           <li>• {t("discovery.explainEnabled")}</li>
@@ -220,6 +224,9 @@ export default function DiscoveryPage() {
                 </li>
               ))}
             </ul>
+            <label className="flex items-center gap-2 border-t border-border px-3 py-2 text-[12px] text-muted">
+              <Switch checked={withoutSite} onCheckedChange={setWithoutSite} label={t("discovery.includeWithoutWebsite")} />{t("discovery.includeWithoutWebsite")}<InfoTip>{t("discovery.includeWithoutWebsiteInfo")}</InfoTip>
+            </label>
             <label className="flex items-center gap-2 border-t border-border px-3 py-2 text-[12px] text-muted"><Checkbox label="force" checked={force} onCheckedChange={setForce} />{t("discovery.forceReimport")}<InfoTip>{t("discovery.forceInfo")}</InfoTip></label>
           </Card>
           {selections?.length ? (
@@ -300,6 +307,15 @@ export default function DiscoveryPage() {
       <ConfirmDialog open={deleteSel !== null} onOpenChange={(v) => !v && setDeleteSel(null)} title={t("common.delete")} danger
         message={t("discovery.deleteSelectionConfirm", { name: deleteSel?.name ?? "" })} confirmLabel={t("common.delete")} cancelLabel={t("common.cancel")}
         onConfirm={() => deleteSel && removeSel(deleteSel.id)} />
+      <Dialog open={started !== null} onOpenChange={(v) => !v && setStarted(null)} title={t("discovery.startedTitle")}
+        footer={<><Button onClick={() => setStarted(null)}>{t("common.close")}</Button><Button variant="primary" asChild><Link href="/companies"><Building2 />{t("discovery.goToCompanies")}</Link></Button></>}>
+        <div className="grid gap-2 text-[13px] leading-relaxed">
+          <p>{t("discovery.startedBody")}</p>
+          <p className="text-muted">{t("discovery.startedScope", { countries: started?.countries ?? 0 })} {started?.industries ? t("discovery.startedIndustries", { count: started.industries }) : t("discovery.startedAllIndustries")}</p>
+          <p className="text-muted">{withoutSite ? t("discovery.startedWithoutSite") : t("discovery.startedOnlyWithSite")}</p>
+          <p className="text-muted">{t("discovery.startedProgress")}</p>
+        </div>
+      </Dialog>
       <ConfirmDialog open={clearOpen} onOpenChange={setClearOpen} title={t("discovery.clearHistory")} danger
         message={t("discovery.clearHistoryConfirm")} confirmLabel={t("discovery.clearHistory")} cancelLabel={t("common.cancel")} onConfirm={clearHistory} />
     </>

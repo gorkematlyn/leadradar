@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy import false as sa_false
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,6 +32,8 @@ class CrmStatus(Base, TimestampMixin):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_terminal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     show_in_pipeline: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # System statuses (new, do_not_contact, archived) are used by the application and cannot be deleted.
+    is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa_false())
 
 
 class Company(Base, TimestampMixin):
@@ -84,6 +87,8 @@ class Company(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text)
     do_not_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Soft delete ("trash"): hidden everywhere, restorable, purged after 30 days.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     is_chain: Mapped[bool | None] = mapped_column(Boolean)
     permanently_closed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     rejected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

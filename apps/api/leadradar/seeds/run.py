@@ -148,10 +148,15 @@ def seed_industries(db: Session, review_tpl: ReviewTemplate, profiles: dict[str,
 
 
 def seed_misc(db: Session) -> None:
+    # CRM statuses are seeded once; afterwards they belong to the administrator (renamed,
+    # reordered, added or deleted in Settings) and are never overwritten or re-created.
+    # The three system statuses are always guaranteed to exist.
+    first_run = db.scalar(select(CrmStatus.key).limit(1)) is None
     for key, en, tr, order, terminal, pipeline in D.CRM_STATUSES:
-        _upsert(db, CrmStatus, {"key": key},
-                {"name_en": en, "name_tr": tr, "sort_order": order, "is_terminal": terminal, "show_in_pipeline": pipeline},
-                respect_custom=False)
+        system = key in D.SYSTEM_CRM_STATUSES
+        if (first_run or system) and db.get(CrmStatus, key) is None:
+            db.add(CrmStatus(key=key, name_en=en, name_tr=tr, sort_order=order, is_terminal=terminal,
+                             show_in_pipeline=pipeline, is_system=system))
     for rule in D.AUDIT_RULES:
         values = dict(rule)
         key = values.pop("key")

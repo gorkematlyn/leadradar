@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
@@ -50,7 +50,7 @@ def now() -> datetime:
 
 def get_company(db: Session, company_id: uuid.UUID) -> Company:
     c = db.get(Company, company_id)
-    if c is None:
+    if c is None or c.deleted_at is not None:
         raise HTTPException(404, "not_found")
     return c
 
@@ -75,6 +75,48 @@ def row_view(c: Company, industries: dict[uuid.UUID, Industry]) -> dict[str, Any
         "crm_status": c.crm_status, "analysis_status": c.analysis_status, "last_audit_at": c.last_audit_at,
         "do_not_contact": c.do_not_contact, "archived": c.archived, "watchlisted": c.watchlisted,
         "follow_up_at": c.follow_up_at,
+    }
+
+
+@router.get("/facets")
+def facets(db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
+    """Values that actually occur in the company list, with counts, so filters only offer
+    options that can return results."""
+    from leadradar.db.models import CompanyTag, Country, Tag
+
+    live = (Company.merged_into_id.is_(None), Company.deleted_at.is_(None))
+
+    def counts(col) -> list[dict]:  # type: ignore[no-untyped-def]
+        return [{"value": v, "count": n} for v, n in db.execute(
+            select(col, func.count()).where(*live, col.isnot(None)).group_by(col).order_by(func.count().desc())).all()]
+
+    industries = {i.id: i.key for i in db.scalars(select(Industry))}
+    regions = dict(db.execute(select(Country.iso2, Country.region_code)).all())
+    country_counts = counts(Company.country_iso2)
+    region_counts: dict[str, int] = {}
+    for x in country_counts:
+        r = regions.get(x["value"])
+        if r:
+            region_counts[r] = region_counts.get(r, 0) + x["count"]
+    tag_counts = db.execute(select(CompanyTag.tag_id, func.count()).join(Company, Company.id == CompanyTag.company_id)
+                            .where(*live).group_by(CompanyTag.tag_id)).all()
+    tag_ids = {t.id for t in db.scalars(select(Tag))}
+    platforms: dict[str, int] = {}
+    for arr, n in db.execute(select(Company.advertising_platforms, func.count()).where(*live)
+                             .group_by(Company.advertising_platforms)).all():
+        for p in arr or []:
+            platforms[p] = platforms.get(p, 0) + n
+    return {
+        "countries": country_counts,
+        "regions": [{"value": k, "count": v} for k, v in region_counts.items()],
+        "industries": [{"value": industries[x["value"]], "count": x["count"]} for x in counts(Company.primary_industry_id)
+                       if x["value"] in industries],
+        "crm_status": counts(Company.crm_status),
+        "website_status": counts(Company.website_status),
+        "analysis_status": counts(Company.analysis_status),
+        "classifications": counts(Company.score_classification),
+        "tags": [{"value": str(t), "count": n} for t, n in tag_counts if t in tag_ids],
+        "ad_platforms": [{"value": k, "count": v} for k, v in platforms.items()],
     }
 
 
@@ -161,7 +203,7 @@ def quick_audit(body: QuickAuditIn, db: Session = Depends(get_db), user: User = 
     existing = None
     if not n.is_shared_platform:
         existing = db.scalar(select(Company).where(Company.canonical_domain == n.canonical_domain,
-                                                   Company.merged_into_id.is_(None)).limit(1))
+                                                   Company.merged_into_id.is_(None), Company.deleted_at.is_(None)).limit(1))
     if existing is None:
         name = body.name or n.registrable_domain.split(".")[0].replace("-", " ").title()
         rec = RecordInput(source="quick_audit", source_key=n.property_key, name=name,
@@ -232,6 +274,7 @@ class CompanyPatch(BaseModel):
     rejected: bool | None = None
     watchlisted: bool | None = None
     archived: bool | None = None
+    website_status: Literal["unverified", "verified", "not_found", "verified_absent"] | None = None
 
 
 @router.patch("/{company_id}")
@@ -254,6 +297,11 @@ def patch_company(company_id: uuid.UUID, body: CompanyPatch, db: Session = Depen
         if data["phone"]:
             _set_field(db, c, "phone", data["phone"], "manual", user_id=user.id, force=True)
             c.phone_normalized = normalize_phone(data["phone"], c.country_iso2)
+    status_before = c.website_status
+    if "website" in data and data["website"] == "":
+        # Clearing the address: the company has no known website.
+        c.website_url, c.canonical_domain, c.website_property_id = None, None, None
+        c.website_status = "not_found"
     if "website" in data and data["website"]:
         if normalize_url(data["website"]) is None:
             raise HTTPException(400, "invalid_website")
@@ -274,6 +322,17 @@ def patch_company(company_id: uuid.UUID, body: CompanyPatch, db: Session = Depen
     for fld in ("email_verified", "is_chain", "permanently_closed", "rejected", "watchlisted", "archived"):
         if fld in data and data[fld] is not None:
             setattr(c, fld, data[fld])
+    if data.get("website_status"):
+        # Manual correction of the website status (e.g. a wrongly detected or missing site).
+        c.website_status = data["website_status"]
+        fs = dict(c.field_sources or {})
+        fs["website_status"] = {"source": "manual", "at": now().isoformat(), "confirmed": True}
+        c.field_sources = fs
+    if c.website_status != status_before and "verified_absent" in (c.website_status, status_before):
+        from leadradar.modules.scoring.service import score_company
+
+        db.flush()
+        score_company(db, c)  # "no website" is a scoring signal
     if "notes" in data:
         c.notes = data["notes"]
     if "follow_up_at" in data:
@@ -307,7 +366,7 @@ class BulkIn(BaseModel):
     ids: list[uuid.UUID] | None = Field(default=None, max_length=5000)
     filter: CompanyFilter | None = None
     action: Literal["add_tags", "remove_tags", "set_status", "audit_quick", "audit_full", "research_ads", "archive",
-                    "unarchive", "watch", "unwatch", "do_not_contact", "recalculate"]
+                    "unarchive", "watch", "unwatch", "do_not_contact", "recalculate", "delete"]
     tag_ids: list[uuid.UUID] = Field(default_factory=list)
     status: str | None = None
     platforms: list[str] | None = None
@@ -316,7 +375,7 @@ class BulkIn(BaseModel):
 
 def _bulk_targets(db: Session, body: BulkIn) -> list[Company]:
     if body.ids:
-        return list(db.scalars(select(Company).where(Company.id.in_(body.ids))))
+        return list(db.scalars(select(Company).where(Company.id.in_(body.ids), Company.deleted_at.is_(None))))
     if body.filter is not None:
         return list(db.scalars(apply_filter(select(Company), body.filter).limit(5000)))
     raise HTTPException(400, "no_targets")
@@ -364,6 +423,10 @@ def bulk(body: BulkIn, db: Session = Depends(get_db), user: User = Depends(curre
     elif body.action == "do_not_contact":
         for c in targets:
             suppress_company(db, c, body.reason, user.id)
+    elif body.action == "delete":
+        from leadradar.modules.crm.trash import move_to_trash
+
+        move_to_trash(db, targets, user.id)
     elif body.action == "recalculate":
         queue.enqueue(db, "recalculate_scores", f"Recalculate {len(targets)} scores",
                       {"company_ids": [str(c.id) for c in targets]}, created_by=user.id)
@@ -413,14 +476,19 @@ def add_activity(company_id: uuid.UUID, body: ActivityIn, db: Session = Depends(
     a = CrmActivity(company_id=c.id, kind=body.kind, title=body.title, body=body.body, data=body.data,
                     occurred_at=body.occurred_at or now(), due_at=body.due_at, user_id=user.id)
     db.add(a)
+    # Automatic status moves only apply while the administrator still has these statuses.
+    def auto(status: str) -> None:
+        if db.get(CrmStatus, status) is not None and not c.do_not_contact:
+            set_status(db, c, status, user.id)
+
     if body.kind == "won":
-        set_status(db, c, "won", user.id)
+        auto("won")
     elif body.kind == "lost":
-        set_status(db, c, "lost", user.id)
+        auto("lost")
     elif body.kind == "proposal" and c.crm_status in ("new", "qualified", "shortlisted", "contacted", "replied", "meeting"):
-        set_status(db, c, "proposal_sent", user.id)
+        auto("proposal_sent")
     elif body.kind == "meeting" and c.crm_status in ("new", "qualified", "shortlisted", "contacted", "replied"):
-        set_status(db, c, "meeting", user.id)
+        auto("meeting")
     if body.due_at:
         c.follow_up_at = body.due_at
     db.flush()
@@ -572,7 +640,7 @@ def duplicates(db: Session = Depends(get_db), _: User = Depends(current_user), l
     rows = db.scalars(select(DuplicateCandidate).where(DuplicateCandidate.status == "pending")
                       .order_by(DuplicateCandidate.score.desc()).limit(limit)).all()
     ids = {r.company_a_id for r in rows} | {r.company_b_id for r in rows}
-    comps = {c.id: c for c in db.scalars(select(Company).where(Company.id.in_(ids)))}
+    comps = {c.id: c for c in db.scalars(select(Company).where(Company.id.in_(ids), Company.deleted_at.is_(None)))}
     out = []
     for r in rows:
         a, b = comps.get(r.company_a_id), comps.get(r.company_b_id)
@@ -624,16 +692,46 @@ def delete_social(company_id: uuid.UUID, profile_id: uuid.UUID, db: Session = De
 
 
 @router.delete("/{company_id}")
-def delete_company(company_id: uuid.UUID, confirm: str = Query(...), db: Session = Depends(get_db),
-                   user: User = Depends(current_user)) -> dict:
-    """Permanent deletion (separate from archiving). Suppression entries survive."""
-    c = get_company(db, company_id)
-    if confirm != c.name:
-        raise HTTPException(400, "confirmation_mismatch")
-    record_activity(db, "data", "company_deleted", user_id=user.id, entity_type="company", entity_id=c.id,
-                    details={"name": c.name})
-    db.delete(c)
+def delete_company(company_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Moves the company to the trash (restorable for 30 days). Suppression entries survive."""
+    from leadradar.modules.crm.trash import move_to_trash
+
+    move_to_trash(db, [get_company(db, company_id)], user.id)
     return {"ok": True}
+
+
+@router.get("/trash/items")
+def trash_items(db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
+    from leadradar.modules.crm.trash import TRASH_DAYS
+
+    rows = db.scalars(select(Company).where(Company.deleted_at.isnot(None)).order_by(Company.deleted_at.desc()).limit(2000)).all()
+    t = now()
+    items = []
+    for c in rows:
+        purge_at = c.deleted_at + timedelta(days=TRASH_DAYS)  # type: ignore[operator]
+        items.append({"id": str(c.id), "name": c.name, "country": c.country_iso2, "city": c.city, "domain": c.canonical_domain,
+                      "deleted_at": c.deleted_at, "purge_at": purge_at,
+                      "days_left": int(max(0, -(-(purge_at - t).total_seconds() // 86400)))})
+    return {"days": TRASH_DAYS, "items": items}
+
+
+class TrashIn(BaseModel):
+    ids: list[uuid.UUID] | None = Field(default=None, max_length=5000)  # None with purge = empty the whole trash
+
+
+@router.post("/trash/restore")
+def trash_restore(body: TrashIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    from leadradar.modules.crm.trash import restore
+
+    return {"restored": restore(db, body.ids or [], user.id)}
+
+
+@router.post("/trash/purge")
+def trash_purge(body: TrashIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Permanent deletion of trashed companies (with audits, reports and CRM history)."""
+    from leadradar.modules.crm.trash import purge
+
+    return {"deleted": purge(db, body.ids, user.id)}
 
 
 # --- Export & import -----------------------------------------------------------------------

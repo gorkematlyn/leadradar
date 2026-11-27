@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/misc";
-import { Dialog } from "@/components/ui/overlay";
-import { useErrorMessage } from "@/hooks/use-api";
+import { ConfirmDialog, Dialog } from "@/components/ui/overlay";
+import { useApi, useErrorMessage } from "@/hooks/use-api";
 import { useCountries, useIndustries, useLocalizedName } from "@/hooks/use-catalog";
 import { api } from "@/lib/api";
 
@@ -180,5 +180,66 @@ export function CsvImportDialog({ open, onOpenChange }: { open: boolean; onOpenC
         ) : null}
       </div>
     </Dialog>
+  );
+}
+
+interface TrashItem { id: string; name: string; country: string | null; city: string | null; domain: string | null; deleted_at: string; purge_at: string; days_left: number }
+
+/** Trash: companies deleted in the last 30 days. Restore them or delete them permanently. */
+export function TrashDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const t = useTranslations();
+  const qc = useQueryClient();
+  const err = useErrorMessage();
+  const { data } = useApi<{ days: number; items: TrashItem[] }>(["companies-trash"], open ? "/companies/trash/items" : null);
+  const [confirm, setConfirm] = useState<{ ids: string[] | null; label: string } | null>(null);
+  const refresh = () => ["companies-trash", "companies", "company-facets", "dashboard", "pipeline", "pipeline-table", "crm-statuses"]
+    .forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  const restore = async (ids: string[]) => {
+    try {
+      const r = await api<{ restored: number }>("/companies/trash/restore", { body: { ids } });
+      toast.success(t("companies.trash.restored", { count: r.restored }));
+      refresh();
+    } catch (e) {
+      toast.error(err(e));
+    }
+  };
+  const purge = async (ids: string[] | null) => {
+    try {
+      const r = await api<{ deleted: number }>("/companies/trash/purge", { body: { ids } });
+      toast.success(t("companies.trash.purged", { count: r.deleted }));
+      refresh();
+    } catch (e) {
+      toast.error(err(e));
+    }
+  };
+  const items = data?.items ?? [];
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange} wide title={t("companies.trash.title")} description={t("companies.trash.hint", { days: data?.days ?? 30 })}
+        footer={<>
+          {items.length ? <Button variant="danger" className="mr-auto" onClick={() => setConfirm({ ids: null, label: t("companies.trash.empty") })}>{t("companies.trash.empty")}</Button> : null}
+          {items.length ? <Button onClick={() => restore(items.map((i) => i.id))}>{t("companies.trash.restoreAll")}</Button> : null}
+          <Button variant="primary" onClick={() => onOpenChange(false)}>{t("common.close")}</Button>
+        </>}>
+        {!items.length ? <p className="py-6 text-center text-[13px] text-muted">{t("companies.trash.isEmpty")}</p> : (
+          <ul className="divide-y divide-border">
+            {items.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-center gap-2 py-2 text-[13px]">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{i.name}</span>
+                  <span className="block text-[11px] text-muted">{[i.country, i.city, i.domain].filter(Boolean).join(" · ")}</span>
+                </span>
+                <span className="num text-[11px] text-muted">{t("companies.trash.daysLeft", { days: i.days_left })}</span>
+                <Button size="sm" variant="ghost" onClick={() => restore([i.id])}>{t("companies.trash.restore")}</Button>
+                <Button size="sm" variant="ghost" className="text-danger" onClick={() => setConfirm({ ids: [i.id], label: i.name })}>{t("companies.trash.deleteForever")}</Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dialog>
+      <ConfirmDialog open={confirm !== null} onOpenChange={(v) => !v && setConfirm(null)} danger title={t("companies.trash.deleteForever")}
+        message={confirm ? t("companies.trash.purgeConfirm", { name: confirm.label, count: confirm.ids?.length ?? items.length }) : null}
+        confirmLabel={t("companies.trash.deleteForever")} cancelLabel={t("common.cancel")} onConfirm={() => confirm && purge(confirm.ids)} />
+    </>
   );
 }

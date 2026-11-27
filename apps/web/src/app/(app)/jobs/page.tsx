@@ -9,8 +9,9 @@ import { Suspense, useState } from "react";
 import { toast } from "sonner";
 import { DateText, JobStatusBadge, PageHeader } from "@/components/app/bits";
 import { JobActions, JobProgress, JobStage } from "@/components/app/job-bits";
+import { ScrollTable } from "@/components/app/scroll-table";
 import { Button } from "@/components/ui/button";
-import { Card, EmptyState, InfoTip, Tooltip } from "@/components/ui/misc";
+import { EmptyState, InfoTip, Tooltip } from "@/components/ui/misc";
 import { ConfirmDialog } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
 import { api } from "@/lib/api";
@@ -49,6 +50,20 @@ function JobsView() {
       toast.error(err(e));
     }
   };
+  const pager = (
+    <>
+          <span className="num text-[12px] text-muted">
+            {total ? t("common.range", { from: fmtNumber((page - 1) * PAGE_SIZE + 1, locale), to: fmtNumber(Math.min(total, page * PAGE_SIZE), locale), total: fmtNumber(total, locale) }) : null}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button size="icon-sm" variant="ghost" aria-label={t("common.first")} disabled={page <= 1} onClick={() => go(1)}><ChevronsLeft /></Button>
+            <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => go(page - 1)}><ChevronLeft />{t("common.previous")}</Button>
+            <span className="num px-2 text-[12px]">{t("common.pageOf", { page, pages })}</span>
+            <Button size="sm" variant="ghost" disabled={page >= pages} onClick={() => go(page + 1)}>{t("common.next")}<ChevronRight /></Button>
+            <Button size="icon-sm" variant="ghost" aria-label={t("common.last")} disabled={page >= pages} onClick={() => go(pages)}><ChevronsRight /></Button>
+          </div>
+        </>
+  );
   return (
     <>
       <PageHeader title={t("jobs.title")} description={t("jobs.subtitle")}
@@ -65,11 +80,10 @@ function JobsView() {
           </Tooltip>
         ))}
       </div>
-      <Card>
+      <ScrollTable footer={pager}>
         {data && !data.items.length ? <EmptyState title={t("jobs.empty")} /> : null}
-        <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-[13px]">
-            <thead><tr className="border-b border-border text-left text-[12px] text-muted">
+            <thead><tr className="text-left text-[12px] text-muted">
               <th className="px-4 py-2 font-medium">{t("jobs.job")}</th><th className="px-2 py-2 font-medium">{t("common.status")}</th>
               <th className="px-2 py-2 font-medium">{t("jobs.stage")}</th><th className="px-2 py-2 font-medium">{t("jobs.progress")}</th>
               <th className="px-2 py-2 font-medium">{t("jobs.started")}</th><th className="px-2 py-2 font-medium">{t("jobs.heartbeat")}</th>
@@ -77,7 +91,7 @@ function JobsView() {
             </tr></thead>
             <tbody>
               {data?.items.map((j) => (
-                <tr key={j.id} className="border-b border-border last:border-0">
+                <tr key={j.id} className="border-t border-border">
                   <td className="max-w-80 px-4 py-2">
                     <Link href={`/jobs/${j.id}`} className="block truncate font-medium hover:underline">{j.name}</Link>
                     <span className="text-[11px] text-muted">{t.has(`jobs.types.${j.type}`) ? t(`jobs.types.${j.type}`) : j.type}</span>
@@ -94,20 +108,7 @@ function JobsView() {
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
-          <span className="num text-[12px] text-muted">
-            {total ? t("common.range", { from: fmtNumber((page - 1) * PAGE_SIZE + 1, locale), to: fmtNumber(Math.min(total, page * PAGE_SIZE), locale), total: fmtNumber(total, locale) }) : null}
-          </span>
-          <div className="flex items-center gap-1">
-            <Button size="icon-sm" variant="ghost" aria-label={t("common.first")} disabled={page <= 1} onClick={() => go(1)}><ChevronsLeft /></Button>
-            <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => go(page - 1)}><ChevronLeft />{t("common.previous")}</Button>
-            <span className="num px-2 text-[12px]">{t("common.pageOf", { page, pages })}</span>
-            <Button size="sm" variant="ghost" disabled={page >= pages} onClick={() => go(page + 1)}>{t("common.next")}<ChevronRight /></Button>
-            <Button size="icon-sm" variant="ghost" aria-label={t("common.last")} disabled={page >= pages} onClick={() => go(pages)}><ChevronsRight /></Button>
-          </div>
-        </div>
-      </Card>
+      </ScrollTable>
       <ConfirmDialog open={clearOpen} onOpenChange={setClearOpen} title={t("jobs.deleteFinished")} danger message={t("jobs.deleteFinishedConfirm")}
         confirmLabel={t("jobs.deleteFinished")} cancelLabel={t("common.cancel")} onConfirm={deleteFinished} />
     </>

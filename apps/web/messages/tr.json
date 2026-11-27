@@ -201,8 +201,8 @@
     "matched": "eşleşti",
     "explainTitle": "İçe aktarma nasıl çalışır?",
     "explainEnabled": "Etkin anahtarı: ülkenin içe aktarılmasına izin verir. Açtığınızda ülke bir sonraki içe aktarma için otomatik olarak seçilir; kapattığınızda sıradaki içe aktarmaları iptal edilir (önceden aktarılan şirketler korunur).",
-    "explainSelect": "Onay kutusu: bu içe aktarmaya hangi ülkelerin gireceğini seçer. “İçe aktarmayı başlat”a bastığınızda yalnızca işaretli ve etkin ülkeler içe aktarılır.",
-    "explainIndustries": "Sektörler: hiçbirini işaretlemezseniz OSM kuralı olan tüm sektörler içe aktarılır.",
+    "explainSelect": "Onay kutusu: bu keşfe hangi ülkelerin gireceğini seçer. “Keşfe başla”ya bastığınızda yalnızca işaretli ve etkin ülkeler işlenir.",
+    "explainIndustries": "Sektörler: ülkedeki tüm işletmeler değil, yalnızca bir sektörün OSM kurallarına uyan işletmeler eklenir. Hiç sektör işaretlemezseniz OSM kuralı olan tüm sektörler kullanılır.",
     "enabledInfo": "Bu ülkenin içe aktarılmasına izin verir. Etkinleştirdiğinizde ülke bir sonraki içe aktarma için otomatik seçilir.",
     "selectInfo": "Burada işaretlenen ülkeler “İçe aktarmayı başlat”a bastığınızda içe aktarılır.",
     "forceInfo": "Normalde Geofabrik son içe aktarmadan bu yana yeni bir dosya yayımlamadıysa bölge atlanır. Yine de indirip yeniden işlemek için bunu işaretleyin.",
@@ -252,7 +252,19 @@
     "selectionEmpty": "Kaydetmeden önce en az bir ülke veya sektör seçin.",
     "updateWithCurrent": "Mevcut seçimle değiştir",
     "updateWithCurrentInfo": "Sayfada şu anda seçili olan ülkeleri, bölgeleri ve sektörleri bu adla kaydeder.",
-    "selectionContents": "{countries} ülke · {industries} sektör"
+    "selectionContents": "{countries} ülke · {industries} sektör",
+    "startDiscovery": "Keşfe başla",
+    "includeWithoutWebsite": "Web sitesi olmayanları ekle",
+    "includeWithoutWebsiteInfo": "Kapalı (varsayılan): OpenStreetMap’te web sitesi olmayan yerler atlanır. Açık: bunlar da “Web sitesi bulunamadı” olarak eklenir. OSM’de web sitesinin olmaması, işletmenin web sitesi olmadığını kanıtlamaz.",
+    "startedTitle": "Keşif başladı",
+    "startedBody": "Tüm veriler içe aktarılıyor ve sektör eşleştirmeleri başlatıldı. Eşleşen firmaları Şirketler ekranından görebilirsiniz.",
+    "startedScope": "Kapsam: {countries} ülke.",
+    "startedIndustries": "{count} seçili sektör.",
+    "startedAllIndustries": "OSM kuralı olan tüm sektörler.",
+    "startedWithoutSite": "Web sitesi olmayan işletmeler de eklenecek.",
+    "startedOnlyWithSite": "Yalnızca web sitesi olan işletmeler eklenecek.",
+    "startedProgress": "Harita verisi arka planda bölge bölge indirilir; ilerlemeyi bu sayfada ve Genel bakış’ta izleyebilirsiniz. Tarayıcıyı kapatabilirsiniz.",
+    "goToCompanies": "Şirketlere git"
   },
   "companies": {
     "title": "Şirketler",
@@ -329,7 +341,8 @@
       "unwatch": "İzleme listesinden çıkar",
       "dnc": "İletişime Geçme olarak işaretle",
       "recalculate": "Puanları yeniden hesapla",
-      "done": "{count} şirket güncellendi"
+      "done": "{count} şirket güncellendi",
+      "delete": "Sil"
     },
     "new": {
       "title": "Şirket ekle",
@@ -354,7 +367,22 @@
     "duplicates": "Olası kopyalar",
     "duplicatesHint": "Aynı işletmeyi tanımlıyor olabilecek kayıtları inceleyin.",
     "mergeInto": "Bununla birleştir",
-    "dismiss": "Kopya değil"
+    "dismiss": "Kopya değil",
+    "trash": {
+      "title": "Çöp kutusu",
+      "hint": "Silinen şirketler {days} gün saklanır ve geri alınabilir. Bu sürenin sonunda denetimleri, raporları ve CRM geçmişiyle birlikte kalıcı olarak silinir.",
+      "empty": "Çöp kutusunu boşalt",
+      "restoreAll": "Tümünü geri al",
+      "isEmpty": "Çöp kutusu boş.",
+      "daysLeft": "{days, plural, =0 {bugün silinecek} other {# gün kaldı}}",
+      "restore": "Geri al",
+      "deleteForever": "Kalıcı olarak sil",
+      "purgeConfirm": "“{name}” kalıcı olarak silinsin mi? {count} şirket denetimleri, raporları ve CRM geçmişiyle birlikte silinir. Bu işlem geri alınamaz.",
+      "moved": "{count} şirket çöp kutusuna taşındı",
+      "restored": "{count} şirket geri alındı",
+      "purged": "{count} şirket kalıcı olarak silindi",
+      "deleteHint": "{count, plural, one {Şirket} other {# şirket}} çöp kutusuna taşınır ve 30 gün içinde geri alınabilir. İletişime Geçme kayıtları korunur."
+    }
   },
   "company": {
     "tabs": {
@@ -423,13 +451,15 @@
     "mergeTitle": "Başka bir şirketi bununla birleştir",
     "mergeHint": "Diğer şirketin CRM kayıtları, denetimleri, kanıtları ve geçmişi buraya taşınır. Diğer kayıt arşivlenir.",
     "mergeSearch": "Birleştirilecek şirketi ara",
-    "deleteTitle": "Şirketi kalıcı olarak sil",
+    "deleteTitle": "Şirketi sil",
     "deleteHint": "Bu işlem şirketi ve geçmişini siler. Engelleme kayıtları korunur. Onaylamak için şirket adını yazın.",
     "dncTitle": "İletişime Geçme olarak işaretle",
     "dncHint": "Bu şirket, alan adı, e-posta, telefon ve kaynak kimlikleri için sistem genelinde engelleme ekler.",
     "recalculated": "Puan yeniden hesaplandı",
     "profile": "Puanlama profili",
-    "compareProfile": "Profille karşılaştır"
+    "compareProfile": "Profille karşılaştır",
+    "editWebsiteStatus": "Web sitesi durumunu değiştir",
+    "editCrmStatus": "CRM durumunu değiştir"
   },
   "score": {
     "leadScore": "Potansiyel puanı",
@@ -723,7 +753,17 @@
     "noActivity": "Kayıtlı etkinlik yok",
     "markDone": "Tamamlandı işaretle",
     "moveTo": "Taşı",
-    "followUps": "Takipler"
+    "followUps": "Takipler",
+    "openCompany": "Şirket sayfasını aç",
+    "opportunities": "Fırsatlar",
+    "opportunitiesInfo": "Fırsat puanı 30 ve üzeri olan hizmetler, en yüksekten başlayarak. * = geçici (yalnızca otomatik kontrollere dayanır).",
+    "reports": "Raporlar",
+    "ads": "Reklamlar",
+    "adsInfo": "Son araştırmada platform başına bulunan reklam sayısı. Dağılımı görmek için üzerine gelin.",
+    "latestReports": "Son raporlar",
+    "moreReports": "+{count} daha fazla",
+    "adsByPlatform": "Platforma göre reklamlar (son araştırma)",
+    "empty": "CRM sürecinde henüz şirket yok."
   },
   "analysisStatus": {
     "not_analyzed": "Analiz edilmedi",
@@ -1038,7 +1078,8 @@
       "retention": "Veri saklama",
       "suppression": "İletişime Geçme",
       "activity": "Etkinlik günlüğü",
-      "health": "Sistem durumu"
+      "health": "Sistem durumu",
+      "crmStatuses": "CRM durumları"
     },
     "domain": "Alan adları",
     "allowedHosts": "İzin verilen host'lar (isteğe bağlı)",
@@ -1166,7 +1207,21 @@
     "versionInfo": "Profil versiyonu. Yalnızca gerçek bir değişiklik kaydettiğinizde artar.",
     "rulesInfo": "Her kural, sinyali bulunduğunda puan ekler (örneğin “mobil uyumlu değil”). Puanı değiştirip Tab'a basın veya alanın dışına tıklayın; değişiklik kaydedilir. Cezalar negatiftir; dışlamalar şirketi sıralamadan çıkarır.",
     "serviceRulesInfo": "Hizmet kuralları, sattığınız her hizmet için (ör. Meta reklamları, web yenileme) potansiyel müşteri puanından bağımsız bir fırsat puanı hesaplar.",
-    "recalcInfo": "Tüm şirketlerin puanını güncel kurallarla yeniden hesaplayan bir arka plan işi başlatır."
+    "recalcInfo": "Tüm şirketlerin puanını güncel kurallarla yeniden hesaplayan bir arka plan işi başlatır.",
+    "crm": {
+      "help": "Bu durumlar CRM sürecinde ve şirket filtrelerinde kullanılır. Değişiklikler hemen kaydedilir. “Yeni”, “İletişime geçme” ve “Arşivlendi” uygulama tarafından kullanılır: yeniden adlandırılabilir ama silinemez.",
+      "order": "Sıra",
+      "inPipeline": "Süreçte göster",
+      "inPipelineInfo": "Durumu Kanban panosunda sütun olarak, şirketlerini de süreç tablosunda gösterir.",
+      "closing": "Kapanış durumu",
+      "closingInfo": "Nihai bir sonucu belirtir (örneğin Kazanıldı veya Kaybedildi).",
+      "system": "Sistem",
+      "systemInfo": "Uygulama tarafından kullanılır; yeniden adlandırılabilir, silinemez.",
+      "add": "Durum ekle",
+      "deleteTitle": "“{name}” silinsin",
+      "moveCompanies": "Bu durumda {count} şirket var. Şu duruma taşınsın:",
+      "deleteEmpty": "Bu durumda şirket yok; güvenle silinebilir."
+    }
   },
   "notifications": {
     "title": "Bildirimler",
@@ -1182,7 +1237,7 @@
     "budgetAlert": "{provider} harcaması aylık {budget} USD bütçenin {spent} USD'si.",
     "adResearchCompleted": "{company} için reklam araştırması tamamlandı.",
     "auditCompleted": "{company} için hızlı denetim tamamlandı.",
-    "clearAll": "Tümünü temizle",
+    "clearAll": "Temizle",
     "jobFailedNamed": "Arka plan işi başarısız oldu: {name}",
     "importFailedRegion": "{country} için içe aktarma başarısız oldu ({region})."
   },

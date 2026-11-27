@@ -13,6 +13,7 @@ import {
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, MoveLeft, MoveRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SCROLL_AREA, SCROLL_BOX, SCROLL_FOOTER } from "@/components/app/scroll-table";
 import { Button } from "@/components/ui/button";
 import { Checkbox, EmptyState, Skeleton } from "@/components/ui/misc";
 import { Popover } from "@/components/ui/overlay";
@@ -131,8 +132,8 @@ export function DataTable<T>(props: Props<T>) {
   };
 
   return (
-    <div className="rounded-lg border border-border bg-surface">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+    <div className={SCROLL_BOX}>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <div className="flex flex-1 flex-wrap items-center gap-2">{props.toolbar}</div>
         <Popover
           align="end"
@@ -151,11 +152,11 @@ export function DataTable<T>(props: Props<T>) {
           <Button size="sm" variant="ghost" className="mt-2 w-full" onClick={() => { setVisibility({}); setSizing({}); setOrder([]); }}>{t("reset")}</Button>
         </Popover>
       </div>
-      <div className="overflow-x-auto">
+      <div className={SCROLL_AREA}>
         <table className="w-full border-collapse text-[13px]" style={{ minWidth: table.getTotalSize() }}>
           <thead>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} className="border-b border-border">
+              <tr key={hg.id}>
                 {hg.headers.map((h) => {
                   const sortable = props.sortable?.includes(h.column.id);
                   const active = props.sort?.id === h.column.id;
@@ -217,7 +218,7 @@ export function DataTable<T>(props: Props<T>) {
         </table>
         {!props.loading && !props.data.length ? (props.empty ?? <EmptyState title={t("noResults")} />) : null}
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-[12px] text-muted">
+      <div className={SCROLL_FOOTER}>
         <span className="num">{t("rows", { count: props.total })}</span>
         <div className="flex items-center gap-2">
           <span className="num">{t("page", { page: props.page, pages })}</span>

@@ -167,6 +167,7 @@ INDUSTRIES = [
     },
 ]
 
+SYSTEM_CRM_STATUSES = ("new", "do_not_contact", "archived")  # used by the application; cannot be deleted
 CRM_STATUSES = [
     ("new", "New", "Yeni", 1, False, True),
     ("qualified", "Qualified", "Nitelikli", 2, False, True),

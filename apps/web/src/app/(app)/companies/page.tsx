@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-import { Copy, Download, FileUp, Filter as FilterIcon, Plus, Save, Search } from "lucide-react";
+import { Copy, Download, FileUp, Filter as FilterIcon, Plus, Save, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,16 +12,16 @@ import {
   AnalysisBadge, CountryLabel, CrmBadge, DateText, IndustryLabel, PageHeader, PlatformChips, ScoreValue, TagChip, WebsiteStatusBadge,
 } from "@/components/app/bits";
 import { activeFilterCount, CompanyFilters } from "@/components/app/company-filters";
-import { CsvImportDialog, NewCompanyDialog } from "@/components/app/company-dialogs";
+import { CsvImportDialog, NewCompanyDialog, TrashDialog } from "@/components/app/company-dialogs";
 import { DataTable } from "@/components/app/data-table";
 import { Button } from "@/components/ui/button";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { Dialog, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
-import { useLocalizedName, useSortByName, useTags } from "@/hooks/use-catalog";
+import { useCrmStatusOptions, useLocalizedName, useSortByName, useTags } from "@/hooks/use-catalog";
 import { api, download } from "@/lib/api";
-import { CRM_STATUSES, type CompanyFilter, type CompanyRow } from "@/lib/types";
+import type { CompanyFilter, CompanyRow } from "@/lib/types";
 
 const PAGE_SIZE = 50;
 
@@ -34,11 +34,21 @@ function CompaniesView() {
   const { data: tags } = useTags();
   const sortTags = useSortByName();
   const tagName = useLocalizedName();
-  const [filter, setFilter] = useState<CompanyFilter>({});
-  const [q, setQ] = useState("");
+  const statusOptions = useCrmStatusOptions();
+  // The list state lives in the URL, so returning from a company page (Back) restores it.
+  const initial = useMemo(() => {
+    let f: CompanyFilter = {};
+    try { f = JSON.parse(params.get("filter") ?? "{}"); } catch { /* ignore malformed */ }
+    return { filter: f, page: Math.max(1, Number(params.get("page")) || 1),
+      sort: { id: params.get("sort") || "score", desc: params.get("dir") !== "asc" } };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [filter, setFilter] = useState<CompanyFilter>(initial.filter);
+  const [q, setQ] = useState(initial.filter.q ?? "");
   const [showFilters, setShowFilters] = useState(false);
-  const [page, setPage] = useState(1);
-  const [sort, setSort] = useState({ id: "score", desc: true });
+  const [page, setPage] = useState(initial.page);
+  const [sort, setSort] = useState(initial.sort);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [selection, setSelection] = useState<RowSelectionState>({});
   const [newOpen, setNewOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
@@ -49,12 +59,24 @@ function CompaniesView() {
   // Load a saved filter (?saved=<id>) or a pre-set filter (?filter=<json>).
   const savedId = params.get("saved");
   const { data: saved } = useApi<{ id: string; filters: CompanyFilter }[]>(["saved-filters"], savedId ? "/saved-filters" : null);
+  // A link with ?filter=… (e.g. from the Tags page) replaces the current filter.
+  const urlFilter = params.get("filter");
   useEffect(() => {
-    const preset = params.get("filter");
-    if (preset) {
-      try { setFilter(JSON.parse(preset)); } catch { /* ignore malformed */ }
-    }
-  }, [params]);
+    if (!urlFilter) return;
+    try {
+      const f = JSON.parse(urlFilter) as CompanyFilter;
+      setFilter((cur) => (JSON.stringify(cur) === urlFilter ? cur : f));
+    } catch { /* ignore malformed */ }
+  }, [urlFilter]);
+  useEffect(() => {
+    const sp = new URLSearchParams();
+    const clean = Object.fromEntries(Object.entries(filter).filter(([, v]) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length)));
+    if (Object.keys(clean).length) sp.set("filter", JSON.stringify(clean));
+    if (page > 1) sp.set("page", String(page));
+    if (sort.id !== "score" || !sort.desc) { sp.set("sort", sort.id); sp.set("dir", sort.desc ? "desc" : "asc"); }
+    const next = sp.toString();
+    if (next !== window.location.search.replace(/^\?/, "")) router.replace(`/companies${next ? `?${next}` : ""}`, { scroll: false });
+  }, [filter, page, sort, router]);
   useEffect(() => {
     const s = saved?.find((x) => x.id === savedId);
     if (s) {
@@ -82,7 +104,12 @@ function CompaniesView() {
         </div>
       ),
     },
-    { id: "website", header: t("companies.col.website"), size: 180, cell: ({ row }) => row.original.domain ? <span className="num text-[12px] text-muted">{row.original.domain}</span> : <span className="text-muted">—</span> },
+    { id: "website", header: t("companies.col.website"), size: 180, cell: ({ row }) => {
+      const r = row.original;
+      // Shared platforms (Facebook page, Linktree …) have no own domain: show the host instead.
+      const shown = r.domain ?? (r.website ? r.website.replace(/^https?:\/\/(www\.)?/, "").split(/[/?#]/)[0] : null);
+      return shown ? <span className="num text-[12px] text-muted" title={r.website ?? undefined}>{shown}</span> : <span className="text-muted">—</span>;
+    } },
     { id: "country", header: t("companies.col.country"), size: 140, cell: ({ row }) => <CountryLabel code={row.original.country} /> },
     { id: "city", header: t("companies.col.city"), size: 120, cell: ({ row }) => row.original.city ?? <span className="text-muted">—</span> },
     { id: "industry", header: t("companies.col.industry"), size: 150, cell: ({ row }) => <IndustryLabel industryKey={row.original.industry} /> },
@@ -109,7 +136,9 @@ function CompaniesView() {
     if (bulk.action === "set_status") payload.status = bulk.status;
     try {
       const res = await api<{ affected: number }>("/companies/bulk", { body: payload });
-      toast.success(t("companies.bulk.done", { count: res.affected }));
+      toast.success(bulk.action === "delete" ? t("companies.trash.moved", { count: res.affected }) : t("companies.bulk.done", { count: res.affected }));
+      qc.invalidateQueries({ queryKey: ["company-facets"] });
+      qc.invalidateQueries({ queryKey: ["companies-trash"] });
       setBulk(null);
       setSelection({});
       qc.invalidateQueries({ queryKey: ["companies"] });
@@ -140,6 +169,7 @@ function CompaniesView() {
         actions={
           <>
             <Button size="sm" asChild><Link href="/companies/duplicates"><Copy />{t("companies.duplicates")}</Link></Button>
+            <Button size="sm" onClick={() => setTrashOpen(true)}><Trash2 />{t("companies.trash.title")}</Button>
             <Button size="sm" onClick={() => setCsvOpen(true)}><FileUp />{t("companies.importCsv")}</Button>
             <Menu>
               <MenuTrigger asChild><Button size="sm"><Download />{t("companies.export")}</Button></MenuTrigger>
@@ -192,7 +222,7 @@ function CompaniesView() {
                 <MenuContent align="start">
                   <MenuItem onSelect={() => setBulk({ action: "add_tags" })}>{t("companies.bulk.addTags")}</MenuItem>
                   <MenuItem onSelect={() => setBulk({ action: "remove_tags" })}>{t("companies.bulk.removeTags")}</MenuItem>
-                  <MenuItem onSelect={() => setBulk({ action: "set_status", status: "qualified" })}>{t("companies.bulk.setStatus")}</MenuItem>
+                  <MenuItem onSelect={() => setBulk({ action: "set_status", status: statusOptions.find((s) => s.value !== "new")?.value ?? statusOptions[0]?.value })}>{t("companies.bulk.setStatus")}</MenuItem>
                   <MenuSeparator />
                   <MenuItem onSelect={() => setBulk({ action: "audit_quick" })}>{t("companies.bulk.auditQuick")}</MenuItem>
                   <MenuItem onSelect={() => setBulk({ action: "audit_full" })}>{t("companies.bulk.auditFull")}</MenuItem>
@@ -204,6 +234,8 @@ function CompaniesView() {
                   <MenuItem onSelect={() => setBulk({ action: "archive" })}>{t("companies.bulk.archive")}</MenuItem>
                   <MenuItem onSelect={() => setBulk({ action: "unarchive" })}>{t("companies.bulk.unarchive")}</MenuItem>
                   <MenuItem danger onSelect={() => setBulk({ action: "do_not_contact" })}>{t("companies.bulk.dnc")}</MenuItem>
+                  <MenuSeparator />
+                  <MenuItem danger onSelect={() => setBulk({ action: "delete" })}><Trash2 />{t("companies.bulk.delete")}</MenuItem>
                 </MenuContent>
               </Menu>
             ) : null}
@@ -213,9 +245,9 @@ function CompaniesView() {
       <Dialog
         open={bulk !== null}
         onOpenChange={(v) => !v && setBulk(null)}
-        title={bulk ? t(`companies.bulk.${{ add_tags: "addTags", remove_tags: "removeTags", set_status: "setStatus", audit_quick: "auditQuick", audit_full: "auditFull", research_ads: "researchAds", recalculate: "recalculate", watch: "watch", unwatch: "unwatch", archive: "archive", unarchive: "unarchive", do_not_contact: "dnc" }[bulk.action] ?? "addTags"}`) : ""}
+        title={bulk ? t(`companies.bulk.${{ add_tags: "addTags", remove_tags: "removeTags", set_status: "setStatus", audit_quick: "auditQuick", audit_full: "auditFull", research_ads: "researchAds", recalculate: "recalculate", watch: "watch", unwatch: "unwatch", archive: "archive", unarchive: "unarchive", do_not_contact: "dnc", delete: "delete" }[bulk.action] ?? "addTags"}`) : ""}
         description={t("common.selected", { count: selectedIds.length })}
-        footer={<><Button onClick={() => setBulk(null)}>{t("common.cancel")}</Button><Button variant="primary" onClick={runBulk}>{t("common.apply")}</Button></>}
+        footer={<><Button onClick={() => setBulk(null)}>{t("common.cancel")}</Button><Button variant={bulk?.action === "delete" ? "danger" : "primary"} onClick={runBulk}>{bulk?.action === "delete" ? t("companies.bulk.delete") : t("common.apply")}</Button></>}
       >
         {bulk?.action === "add_tags" || bulk?.action === "remove_tags" ? (
           <Field label={t("nav.tags")}>
@@ -227,9 +259,11 @@ function CompaniesView() {
         ) : bulk?.action === "set_status" ? (
           <Field label={t("companies.col.crmStatus")}>
             <NativeSelect value={bulk.status} onChange={(e) => setBulk({ ...bulk, status: e.target.value })}>
-              {CRM_STATUSES.filter((s) => s !== "do_not_contact").map((s) => <option key={s} value={s}>{t(`crm.status.${s}`)}</option>)}
+              {statusOptions.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </NativeSelect>
           </Field>
+        ) : bulk?.action === "delete" ? (
+          <p className="text-[13px] text-muted">{t("companies.trash.deleteHint", { count: selectedIds.length })}</p>
         ) : bulk?.action === "do_not_contact" ? (
           <p className="text-[13px] text-muted">{t("company.dncHint")}</p>
         ) : (
@@ -242,6 +276,7 @@ function CompaniesView() {
       </Dialog>
       <NewCompanyDialog open={newOpen} onOpenChange={setNewOpen} />
       <CsvImportDialog open={csvOpen} onOpenChange={setCsvOpen} />
+      <TrashDialog open={trashOpen} onOpenChange={setTrashOpen} />
     </>
   );
 }

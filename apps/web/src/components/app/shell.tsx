@@ -140,9 +140,9 @@ function Notifications() {
         </Button>
       }
     >
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 border-b border-border px-3 py-2">
         <span className="text-[13px] font-semibold">{t("title")}</span>
-        <span className="flex gap-1">
+        <span className="flex shrink-0 gap-1">
           {data?.unread ? <Button size="sm" variant="ghost" onClick={markAll}>{t("markAllRead")}</Button> : null}
           {data?.items.length ? <Button size="sm" variant="ghost" onClick={clearAll}>{t("clearAll")}</Button> : null}
         </span>

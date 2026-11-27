@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ExternalLink, MoreHorizontal, Play, Search } from "lucide-react";
+import { AlertTriangle, ChevronDown, ExternalLink, MoreHorizontal, Play, Search } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -18,11 +18,11 @@ import type { CompanyDetail } from "@/components/company/types";
 import { Button } from "@/components/ui/button";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Badge, Card, CardHeader, Checkbox, Skeleton } from "@/components/ui/misc";
-import { Dialog, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Tabs } from "@/components/ui/overlay";
+import { ConfirmDialog, Dialog, Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Tabs } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
-import { useCountries, useIndustries, useLocalizedName, useSortByName, useTags } from "@/hooks/use-catalog";
+import { useCountries, useCrmStatusOptions, useIndustries, useLocalizedName, useSortByName, useTags } from "@/hooks/use-catalog";
 import { api } from "@/lib/api";
-import { CRM_STATUSES } from "@/lib/types";
+import { WEBSITE_STATUSES } from "@/lib/types";
 
 type DialogKind = "edit" | "override" | "tags" | "merge" | "dnc" | "delete" | null;
 
@@ -35,6 +35,7 @@ function CompanyView() {
   const err = useErrorMessage();
   const nameOf = useLocalizedName();
   const sortByName = useSortByName();
+  const statusOptions = useCrmStatusOptions();
   const [tab, setTab] = useState(params.get("tab") ?? "overview");
   const [dialog, setDialog] = useState<DialogKind>(null);
   const { data: c, isLoading } = useApi<CompanyDetail>(["company", id], `/companies/${id}`, { refetchInterval: 20_000 });
@@ -100,8 +101,32 @@ function CompanyView() {
             <IndustryLabel industryKey={c.industry} />
             {c.industry_confidence === "review" ? <Badge tone="warning">{t("company.industryReview")}</Badge> : null}
             {c.website ? <a href={c.website} target="_blank" rel="noopener noreferrer nofollow" className="num inline-flex items-center gap-1 text-[12px] text-muted hover:underline"><ExternalLink className="size-3" />{c.domain ?? c.website}</a> : null}
-            <WebsiteStatusBadge status={c.website_status} />
-            <CrmBadge status={c.crm_status} />
+            <Menu>
+              <MenuTrigger asChild>
+                <button type="button" title={t("company.editWebsiteStatus")} className="inline-flex items-center gap-0.5 rounded-sm hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ring">
+                  <WebsiteStatusBadge status={c.website_status} /><ChevronDown className="size-3 text-muted" />
+                </button>
+              </MenuTrigger>
+              <MenuContent align="start">
+                <MenuLabel>{t("company.editWebsiteStatus")}</MenuLabel>
+                {WEBSITE_STATUSES.map((s) => (
+                  <MenuItem key={s} onSelect={() => patch({ website_status: s })}>{c.website_status === s ? "• " : ""}{t(`websiteStatus.${s}`)}</MenuItem>
+                ))}
+              </MenuContent>
+            </Menu>
+            <Menu>
+              <MenuTrigger asChild>
+                <button type="button" disabled={c.do_not_contact} title={t("company.editCrmStatus")} className="inline-flex items-center gap-0.5 rounded-sm hover:opacity-80 focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default">
+                  <CrmBadge status={c.crm_status} />{!c.do_not_contact ? <ChevronDown className="size-3 text-muted" /> : null}
+                </button>
+              </MenuTrigger>
+              <MenuContent align="start">
+                <MenuLabel>{t("company.editCrmStatus")}</MenuLabel>
+                {statusOptions.map((s) => (
+                  <MenuItem key={s.value} onSelect={() => patch({ crm_status: s.value })}>{c.crm_status === s.value ? "• " : ""}{s.label}</MenuItem>
+                ))}
+              </MenuContent>
+            </Menu>
             <AnalysisBadge status={c.analysis_status} />
             {c.tags.map((x) => <TagChip key={x.id} tag={x} />)}
           </div>
@@ -190,7 +215,8 @@ function CompanyView() {
                 <div className="grid gap-3">
                   <Field label={t("companies.col.crmStatus")}>
                     <NativeSelect value={c.crm_status} disabled={c.do_not_contact} onChange={(e) => patch({ crm_status: e.target.value })}>
-                      {CRM_STATUSES.filter((s) => s !== "do_not_contact" || c.do_not_contact).map((s) => <option key={s} value={s}>{t(`crm.status.${s}`)}</option>)}
+                      {c.do_not_contact ? <option value="do_not_contact">{t("companies.f.dncOnly")}</option> : null}
+                      {statusOptions.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </NativeSelect>
                   </Field>
                   <Field label={t("company.followUp")}>
@@ -308,18 +334,18 @@ function CompanyView() {
         <Field label={t("common.reason")}><Input value={text} onChange={(e) => setText(e.target.value)} /></Field>
       </Dialog>
 
-      <Dialog open={dialog === "delete"} onOpenChange={(v) => !v && setDialog(null)} title={t("company.deleteTitle")} description={t("company.deleteHint")}
-        footer={<><Button onClick={() => setDialog(null)}>{t("common.cancel")}</Button><Button variant="danger" disabled={text !== c.name} onClick={async () => {
+      <ConfirmDialog open={dialog === "delete"} onOpenChange={(v) => !v && setDialog(null)} title={t("company.deleteTitle")} danger
+        message={t("companies.trash.deleteHint", { count: 1 })} confirmLabel={t("common.delete")} cancelLabel={t("common.cancel")}
+        onConfirm={async () => {
           try {
-            await api(`/companies/${id}`, { method: "DELETE", query: { confirm: text } });
-            qc.invalidateQueries({ queryKey: ["companies"] });
+            await api(`/companies/${id}`, { method: "DELETE" });
+            ["companies", "company-facets", "companies-trash"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+            toast.success(t("companies.trash.moved", { count: 1 }));
             router.push("/companies");
           } catch (e) {
             toast.error(err(e));
           }
-        }}>{t("common.delete")}</Button></>}>
-        <Field label={c.name}><Input value={text} onChange={(e) => setText(e.target.value)} /></Field>
-      </Dialog>
+        }} />
     </>
   );
 }

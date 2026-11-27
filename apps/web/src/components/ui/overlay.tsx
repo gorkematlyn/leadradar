@@ -102,12 +102,13 @@ export function Popover({ trigger, children, align = "start", className, open, o
 export function Tabs({ value, onValueChange, tabs, children }: { value: string; onValueChange: (v: string) => void; tabs: { value: string; label: React.ReactNode; count?: number }[]; children?: React.ReactNode }) {
   return (
     <T.Root value={value} onValueChange={onValueChange}>
-      <T.List className="flex gap-1 overflow-x-auto border-b border-border">
+      {/* Horizontal scrolling only (narrow screens); the bottom rule is a shadow so no vertical overflow/scrollbar appears. */}
+      <T.List className="flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => (
           <T.Trigger
             key={t.value}
             value={t.value}
-            className="relative -mb-px whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[13px] text-muted hover:text-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
+            className="relative whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-[13px] text-muted hover:text-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground"
           >
             {t.label}
             {t.count !== undefined ? <span className="num ml-1.5 text-[11px] text-muted">{t.count}</span> : null}

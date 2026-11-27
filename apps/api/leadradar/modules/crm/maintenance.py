@@ -65,7 +65,8 @@ def handle_campaign(ctx: JobContext) -> HandlerResult:
         audit_mode = actions.get("audit")
         if audit_mode in ("quick", "full") or actions.get("ads"):
             q = select(Company).where(Company.archived.is_(False), Company.do_not_contact.is_(False),
-                                      Company.merged_into_id.is_(None), Company.permanently_closed.is_(False))
+                                      Company.merged_into_id.is_(None), Company.permanently_closed.is_(False),
+                                      Company.deleted_at.is_(None))
             if countries:
                 q = q.where(Company.country_iso2.in_(countries))
             if c.industries:
@@ -161,6 +162,9 @@ def handle_retention(ctx: JobContext) -> HandlerResult:
         if days:
             stats["snapshots"] = db.execute(delete(CompanySnapshot).where(
                 CompanySnapshot.taken_at < now() - timedelta(days=days))).rowcount or 0
+        from leadradar.modules.crm.trash import TRASH_DAYS, purge
+
+        stats["trash_purged"] = purge(db, None, None, older_than_days=TRASH_DAYS)
         # Orphaned blobs (no evidence / report asset references) older than a day.
         stats["orphan_blobs"] = db.execute(delete(EvidenceBlob).where(
             EvidenceBlob.pinned.is_(False), EvidenceBlob.created_at < now() - timedelta(days=1),
@@ -181,7 +185,7 @@ def handle_recalc(ctx: JobContext) -> HandlerResult:
     ids = [uuid.UUID(x) for x in ctx.payload.get("company_ids") or []]
     with session_scope() as db:
         if not ids:
-            ids = list(db.scalars(select(Company.id).where(Company.merged_into_id.is_(None),
+            ids = list(db.scalars(select(Company.id).where(Company.merged_into_id.is_(None), Company.deleted_at.is_(None),
                                                            or_(Company.last_audit_at.isnot(None),
                                                                Company.website_status == "verified_absent"))))
     total = len(ids)

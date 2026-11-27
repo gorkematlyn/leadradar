@@ -174,7 +174,7 @@ def approve_evidence(evidence_id: uuid.UUID, body: ApproveEvidenceIn, db: Sessio
 @router.get("/review-queue")
 def review_queue(db: Session = Depends(get_db), _: User = Depends(current_user), limit: int = Query(100, le=500)) -> list[dict]:
     rows = db.execute(select(WebsiteAudit, Company).join(Company, Company.id == WebsiteAudit.company_id)
-                      .where(WebsiteAudit.status == "action_required")
+                      .where(WebsiteAudit.status == "action_required", Company.deleted_at.is_(None))
                       .order_by(WebsiteAudit.automated_completed_at.asc().nulls_last()).limit(limit)).all()
     return [{"audit_id": str(a.id), "company_id": str(c.id), "company": c.name, "website": c.website_url,
              "country": c.country_iso2, "preliminary_score": c.preliminary_lead_score, "confidence": c.confidence_score,

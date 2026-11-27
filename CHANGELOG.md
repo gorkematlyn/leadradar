@@ -1,6 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+
+### Added
+- **Company trash.** Companies can be deleted one by one or in bulk; they move to a trash for 30 days (restore or delete permanently, empty the trash) and are then purged automatically. Trashed companies are hidden everywhere, and their public report links stop working. Do Not Contact entries always survive.
+- **Editable CRM statuses** (Settings → CRM statuses): rename in both languages, reorder, show or hide in the pipeline, mark as closing, add and delete. Companies in a deleted status are moved to a status you choose. *New*, *Do not contact* and *Archived* are system statuses (rename only).
+- **CRM pipeline table**: status, opportunities sorted by score, lead score, number of reports (hover: latest five, newest first, with "+N more") and number of ads from the latest research (hover: per-platform breakdown). Clicking a company opens a summary dialog with editable status and follow-up. The Kanban/Table choice is remembered.
+- **Discovery**: the start button is now *Start discovery*, followed by a confirmation that explains what happens next, with a link to Companies. New switch *Add businesses without a website* (off by default: places without a website are skipped).
+- **Dynamic filters**: company filters only offer countries, regions, industries, statuses, tags and platforms that occur in the data, with counts.
+- Website and CRM status can be changed from the company header.
+
+### Changed
+- Tables fit the screen: toolbar, column headers and pagination stay in place, only the rows scroll, and the horizontal scrollbar is always visible.
+- The company list keeps its filter, sorting and page in the address bar, so returning from a company page restores it.
+
+### Fixed
+- Companies without a website showed "Not verified" instead of "Website not found" (existing records are corrected by migration `0003`).
+- A vertical scrollbar appeared next to the company tabs; the Turkish notification header overflowed.
+
+## 0.2.2
 
 ### Documentation
 - New guide to OSM matching rules in English and Turkish ([docs/osm-rules.md](docs/osm-rules.md), [docs/osm-rules.tr.md](docs/osm-rules.tr.md)): field reference, writing conditions, a worked example for consulting firms, testing, and links to OpenStreetMap, TagInfo, the OSM wiki and Overpass Turbo. A test keeps the JSON examples valid.

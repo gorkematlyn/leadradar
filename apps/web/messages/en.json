@@ -201,8 +201,8 @@
     "matched": "matched",
     "explainTitle": "How importing works",
     "explainEnabled": "Enabled switch: allows a country to be imported. Turning it on also selects the country for the next import; turning it off cancels its queued imports (companies already imported are kept).",
-    "explainSelect": "Checkbox: chooses the countries for this import. Only checked, enabled countries are imported when you press “Start import”.",
-    "explainIndustries": "Industries: leave all unchecked to import every industry that has OSM rules.",
+    "explainSelect": "Checkbox: chooses the countries for this discovery. Only checked, enabled countries are processed when you press “Start discovery”.",
+    "explainIndustries": "Industries: only businesses that match an industry’s OSM rules are added, never every business in the country. If no industry is checked, all industries that have OSM rules are used.",
     "enabledInfo": "Allows this country to be imported. Enabling selects it for the next import automatically.",
     "selectInfo": "Countries checked here are imported when you press “Start import”.",
     "forceInfo": "Normally a region is skipped if Geofabrik has not published a newer file since the last import. Check this to download and process it again anyway.",
@@ -252,7 +252,19 @@
     "selectionEmpty": "Select at least one country or industry before saving.",
     "updateWithCurrent": "Replace with current selection",
     "updateWithCurrentInfo": "Stores the countries, regions and industries that are selected on the page right now under this name.",
-    "selectionContents": "{countries} countries · {industries} industries"
+    "selectionContents": "{countries} countries · {industries} industries",
+    "startDiscovery": "Start discovery",
+    "includeWithoutWebsite": "Add businesses without a website",
+    "includeWithoutWebsiteInfo": "Off (default): places without a website in OpenStreetMap are skipped. On: they are added as well, marked “Website not found”. Note that a missing website in OSM does not prove that the business has none.",
+    "startedTitle": "Discovery started",
+    "startedBody": "All data is being imported and industry matching has started. You can see the matching businesses on the Companies page.",
+    "startedScope": "Scope: {countries, plural, one {# country} other {# countries}}.",
+    "startedIndustries": "{count, plural, one {# selected industry} other {# selected industries}}.",
+    "startedAllIndustries": "All industries with OSM rules.",
+    "startedWithoutSite": "Businesses without a website are included.",
+    "startedOnlyWithSite": "Only businesses with a website are added.",
+    "startedProgress": "The map data is downloaded region by region in the background; you can follow the progress on this page and on the Overview. You may close the browser.",
+    "goToCompanies": "Go to Companies"
   },
   "companies": {
     "title": "Companies",
@@ -329,7 +341,8 @@
       "unwatch": "Remove from watchlist",
       "dnc": "Mark Do Not Contact",
       "recalculate": "Recalculate scores",
-      "done": "{count} companies updated"
+      "done": "{count} companies updated",
+      "delete": "Delete"
     },
     "new": {
       "title": "Add company",
@@ -354,7 +367,22 @@
     "duplicates": "Potential duplicates",
     "duplicatesHint": "Review records that may describe the same business.",
     "mergeInto": "Merge into this",
-    "dismiss": "Not a duplicate"
+    "dismiss": "Not a duplicate",
+    "trash": {
+      "title": "Trash",
+      "hint": "Deleted companies are kept for {days} days and can be restored. After that they are deleted permanently with their audits, reports and CRM history.",
+      "empty": "Empty trash",
+      "restoreAll": "Restore all",
+      "isEmpty": "The trash is empty.",
+      "daysLeft": "{days, plural, =0 {deleted today} one {# day left} other {# days left}}",
+      "restore": "Restore",
+      "deleteForever": "Delete permanently",
+      "purgeConfirm": "Permanently delete “{name}”? {count, plural, one {# company is} other {# companies are}} removed with audits, reports and CRM history. This cannot be undone.",
+      "moved": "{count, plural, one {# company moved} other {# companies moved}} to the trash",
+      "restored": "{count, plural, one {# company restored} other {# companies restored}}",
+      "purged": "{count, plural, one {# company deleted} other {# companies deleted}} permanently",
+      "deleteHint": "{count, plural, one {The company is} other {# companies are}} moved to the trash and can be restored within 30 days. Do Not Contact entries are kept."
+    }
   },
   "company": {
     "tabs": {
@@ -423,13 +451,15 @@
     "mergeTitle": "Merge another company into this one",
     "mergeHint": "CRM records, audits, evidence and history of the other company are moved here. The other record is archived.",
     "mergeSearch": "Search company to merge",
-    "deleteTitle": "Delete company permanently",
+    "deleteTitle": "Delete company",
     "deleteHint": "This removes the company and its history. Suppression entries are kept. Type the company name to confirm.",
     "dncTitle": "Mark as Do Not Contact",
     "dncHint": "Adds system-wide suppression for this company, its domain, email, phone and source identifiers.",
     "recalculated": "Score recalculated",
     "profile": "Scoring profile",
-    "compareProfile": "Compare with profile"
+    "compareProfile": "Compare with profile",
+    "editWebsiteStatus": "Change website status",
+    "editCrmStatus": "Change CRM status"
   },
   "score": {
     "leadScore": "Lead score",
@@ -723,7 +753,17 @@
     "noActivity": "No activity recorded",
     "markDone": "Mark done",
     "moveTo": "Move to",
-    "followUps": "Follow-ups"
+    "followUps": "Follow-ups",
+    "openCompany": "Open company page",
+    "opportunities": "Opportunities",
+    "opportunitiesInfo": "Services with an opportunity score of 30 or more, highest first. * = provisional (based on automated checks only).",
+    "reports": "Reports",
+    "ads": "Ads",
+    "adsInfo": "Number of ads found in the latest research per platform. Hover to see the breakdown.",
+    "latestReports": "Latest reports",
+    "moreReports": "+{count} more",
+    "adsByPlatform": "Ads by platform (latest research)",
+    "empty": "No companies in the pipeline yet."
   },
   "analysisStatus": {
     "not_analyzed": "Not analyzed",
@@ -1038,7 +1078,8 @@
       "retention": "Data retention",
       "suppression": "Do Not Contact",
       "activity": "Activity log",
-      "health": "System health"
+      "health": "System health",
+      "crmStatuses": "CRM statuses"
     },
     "domain": "Domains",
     "allowedHosts": "Allowed hosts (optional)",
@@ -1166,7 +1207,21 @@
     "versionInfo": "Profile version. It increases only when you save a real change.",
     "rulesInfo": "Each rule adds points when its signal is found (for example “no mobile layout”). Change points and press Tab or click outside the field to save. Penalties are negative; exclusions remove a company from ranking.",
     "serviceRulesInfo": "Service rules calculate the opportunity score for each service you sell (e.g. Meta Ads, web redesign), independent of the lead score.",
-    "recalcInfo": "Queues a background job that recalculates every company's score with the current rules."
+    "recalcInfo": "Queues a background job that recalculates every company's score with the current rules.",
+    "crm": {
+      "help": "These statuses are used on the CRM pipeline and in company filters. Changes are saved immediately. “New”, “Do not contact” and “Archived” are used by the application: they can be renamed but not deleted.",
+      "order": "Order",
+      "inPipeline": "Show in pipeline",
+      "inPipelineInfo": "Shows the status as a column on the Kanban board and its companies in the pipeline table.",
+      "closing": "Closing status",
+      "closingInfo": "Marks a final outcome (for example Won or Lost).",
+      "system": "System",
+      "systemInfo": "Used by the application; can be renamed, not deleted.",
+      "add": "Add status",
+      "deleteTitle": "Delete “{name}”",
+      "moveCompanies": "{count, plural, one {# company is} other {# companies are}} in this status. Move them to:",
+      "deleteEmpty": "No company is in this status. It can be deleted safely."
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -1182,7 +1237,7 @@
     "budgetAlert": "{provider} spending {spent} USD of {budget} USD monthly budget.",
     "adResearchCompleted": "Advertising research completed for {company}.",
     "auditCompleted": "Quick audit completed for {company}.",
-    "clearAll": "Clear all",
+    "clearAll": "Clear",
     "jobFailedNamed": "Background job failed: {name}",
     "importFailedRegion": "Import failed for {country} ({region})."
   },

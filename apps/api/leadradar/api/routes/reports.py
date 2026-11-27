@@ -65,7 +65,8 @@ def report_view(db: Session, r: Report) -> dict:
 
 @router.get("/reports")
 def list_reports(db: Session = Depends(get_db), _: User = Depends(current_user), company_id: uuid.UUID | None = None) -> list[dict]:
-    q = select(Report).order_by(Report.updated_at.desc()).limit(300)
+    q = (select(Report).join(Company, Company.id == Report.company_id).where(Company.deleted_at.is_(None))
+         .order_by(Report.updated_at.desc()).limit(300))
     if company_id:
         q = q.where(Report.company_id == company_id)
     return [report_view(db, r) for r in db.scalars(q)]
@@ -286,6 +287,9 @@ def _resolve(db: Session, token: str, request: Request):  # type: ignore[no-unty
     if res is None:
         return None
     link, report, version = res
+    company = db.get(Company, report.company_id)
+    if company is None or company.deleted_at is not None:
+        return None  # public links of companies in the trash stop working
     if link.password_hash:
         cookie = request.cookies.get(_unlock_cookie_name(link.id))
         if not cookie or not hmac.compare_digest(cookie, _unlock_value(link)):

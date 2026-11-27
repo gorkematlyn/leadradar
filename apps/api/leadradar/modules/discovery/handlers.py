@@ -98,7 +98,8 @@ def handle_country_import(ctx: JobContext) -> dict:
                 {"country": iso2, "extract_id": ext.id, "pbf_url": ext.pbf_url, "size": ext.size,
                  "last_modified": ext.last_modified.isoformat() if ext.last_modified else None,
                  "import_run_id": str(run.id), "industries": ctx.payload.get("industries"),
-                 "region_name": ext.name if len(plan) > 1 else None, "force": ctx.payload.get("force", False)},
+                 "region_name": ext.name if len(plan) > 1 else None, "force": ctx.payload.get("force", False),
+                 "include_without_website": ctx.payload.get("include_without_website", False)},
                 idempotency_key=f"geofabrik_extract:{ext.id}", parent_id=ctx.job_id,
                 depends_on=[previous] if previous else [], concurrency_key="geofabrik_download",
                 priority=50 + i,
@@ -157,7 +158,8 @@ def handle_extract_import(ctx: JobContext) -> dict:
         ctx.log("info", "download verified", path=os.path.basename(path))
         ctx.progress("extract", 0, None)  # total unknown: no fabricated percentage
         stats = {"matched": 0, "created": 0, "updated": 0, "unchanged": 0, "matched_existing": 0,
-                 "duplicate_candidates": 0, "skipped_no_name": 0}
+                 "duplicate_candidates": 0, "skipped_no_name": 0, "skipped_no_website": 0}
+        with_no_site = bool(p.get("include_without_website", False))
         resume_after = int(ctx.checkpoint_data.get("processed", 0))
         processed = 0
         batch: list[ExtractedPoi] = []
@@ -168,6 +170,9 @@ def handle_extract_import(ctx: JobContext) -> dict:
                     rec = poi_to_record(poi, iso2, p.get("region_name"), run_id)
                     if not rec.name:
                         stats["skipped_no_name"] += 1
+                        continue
+                    if not with_no_site and not rec.website:
+                        stats["skipped_no_website"] += 1
                         continue
                     out = upsert_record(db, rec, suppression)
                     key = {"created": "created", "updated": "updated", "unchanged": "unchanged",
