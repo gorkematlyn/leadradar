@@ -124,6 +124,7 @@ compose.yml             Dokploy-compatible Compose file (PostgreSQL is a separat
 
 ## Licensing and attribution
 
+- LeadRadar itself is released under the [MIT License](LICENSE): you may use, modify and distribute it, including commercially, as long as the copyright notice is kept. It comes with no warranty.
 - Map data © OpenStreetMap contributors, under the [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/). The attribution appears in the application and in reports that contain OSM-derived data.
 - Geist fonts: SIL Open Font License 1.1.
 - Country flags: [flag-icons](https://github.com/lipis/flag-icons) (MIT).

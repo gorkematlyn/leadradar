@@ -124,6 +124,7 @@ compose.yml             Dokploy uyumlu Compose dosyası (PostgreSQL ayrı bir se
 
 ## Lisans ve atıflar
 
+- LeadRadar'ın kendisi [MIT Lisansı](LICENSE) ile yayımlanmıştır: telif hakkı bildirimi korunduğu sürece ticari amaçlar dahil kullanabilir, değiştirebilir ve dağıtabilirsiniz. Herhangi bir garanti verilmez.
 - Harita verileri © OpenStreetMap katkıda bulunanlar, [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/) kapsamında. Atıf, uygulamada ve OSM verisi içeren raporlarda gösterilir.
 - Geist yazı tipleri: SIL Open Font License 1.1.
 - Ülke bayrakları: [flag-icons](https://github.com/lipis/flag-icons) (MIT).
