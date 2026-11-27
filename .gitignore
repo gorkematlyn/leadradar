@@ -34,7 +34,8 @@ tmp/
 screenshots/
 *.dump
 *.sql.gz
-data/
+/data/
+!apps/api/leadradar/seeds/data/
 
 # Editors / OS
 .DS_Store
