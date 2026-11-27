@@ -109,6 +109,7 @@ compose.yml             Dokploy uyumlu Compose dosyası (PostgreSQL ayrı bir se
 | Belge | İçerik |
 |---|---|
 | [Dokploy kurulumu](docs/deployment-dokploy.tr.md) · [English](docs/deployment-dokploy.md) | Adım adım kurulum, alan adı değişikliği, güncelleme, yedekleme, kurtarma |
+| [OSM eşleştirme kuralları](docs/osm-rules.tr.md) · [English](docs/osm-rules.md) | Sektör kurallarının yazımı, danışmanlık firmaları örneği ve OSM etiketlerinin nerede bulunacağı |
 | [Mimari](docs/architecture.md) (EN) | Servisler, veri akışı, iş kuyruğu, tasarım kararları |
 | [Güvenlik](docs/security.md) (EN) | Kimlik doğrulama, CSRF, SSRF koruması, herkese açık rapor güvenliği |
 | [Puanlama](docs/scoring.md) (EN) | Potansiyel müşteri, güven ve hizmet puanlarının nasıl hesaplandığı |

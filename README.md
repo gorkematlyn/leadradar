@@ -109,6 +109,7 @@ compose.yml             Dokploy-compatible Compose file (PostgreSQL is a separat
 | Document | Content |
 |---|---|
 | [Installing on Dokploy](docs/deployment-dokploy.md) · [Türkçe](docs/deployment-dokploy.tr.md) | Step-by-step installation, domain changes, updates, backups, recovery |
+| [OSM matching rules](docs/osm-rules.md) · [Türkçe](docs/osm-rules.tr.md) | How to write industry rules, with a consulting-firms example and where to find OSM tags |
 | [Architecture](docs/architecture.md) | Services, data flow, job queue, design decisions |
 | [Security](docs/security.md) | Authentication, CSRF, SSRF protection, public report safety |
 | [Scoring](docs/scoring.md) | How lead, confidence and service scores are calculated |

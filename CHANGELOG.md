@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+- New guide to OSM matching rules in English and Turkish ([docs/osm-rules.md](docs/osm-rules.md), [docs/osm-rules.tr.md](docs/osm-rules.tr.md)): field reference, writing conditions, a worked example for consulting firms, testing, and links to OpenStreetMap, TagInfo, the OSM wiki and Overpass Turbo. A test keeps the JSON examples valid.
+
 ## 0.2.1
 
 ### Fixed
