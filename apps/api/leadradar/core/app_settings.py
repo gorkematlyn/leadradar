@@ -63,6 +63,7 @@ DEFS: list[SettingDef] = [
     SettingDef("geofabrik.min_reimport_days", 7, "int", "discovery", 1, 365),
     SettingDef("discovery.initial_countries", ["TR", "NL", "DE", "GB", "US"], "list", "discovery"),
     SettingDef("discovery.initial_import_scheduled", False, "bool", "internal"),
+    SettingDef("ui.warnings_cleared_at", None, "str", "internal"),
     SettingDef("discovery.priority_countries", ["TR", "NL", "DE", "GB", "US"], "list", "discovery"),
     # Scoring
     SettingDef("scoring.excluded_domains", [], "list", "scoring"),

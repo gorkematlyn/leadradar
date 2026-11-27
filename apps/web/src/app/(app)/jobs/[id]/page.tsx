@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { DateText, JobStatusBadge, KeyValue, PageHeader } from "@/components/app/bits";
-import { JobActions, JobProgress } from "@/components/app/job-bits";
+import { JobActions, JobProgress, JobStage } from "@/components/app/job-bits";
 import { Card, CardHeader, Skeleton } from "@/components/ui/misc";
 import { useApi } from "@/hooks/use-api";
 import type { Job } from "@/lib/types";
@@ -19,16 +19,17 @@ interface JobDetail extends Job {
 export default function JobPage() {
   const t = useTranslations();
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { data: j } = useApi<JobDetail>(["job", id], `/jobs/${id}`, { refetchInterval: 4_000 });
   if (!j) return <Skeleton className="h-64 w-full" />;
   return (
     <>
-      <PageHeader title={j.name} description={t.has(`jobs.types.${j.type}`) ? t(`jobs.types.${j.type}`) : j.type} actions={<JobActions job={j} />} />
+      <PageHeader title={j.name} description={t.has(`jobs.types.${j.type}`) ? t(`jobs.types.${j.type}`) : j.type} actions={<JobActions job={j} onDeleted={() => router.push("/jobs")} />} />
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <Card>
           <dl className="px-4 py-2">
             <KeyValue label={t("common.status")}><JobStatusBadge status={j.status} />{j.cancel_requested ? <span className="ml-2 text-[12px] text-muted">{t("jobs.cancelRequested")}</span> : null}</KeyValue>
-            <KeyValue label={t("jobs.stage")}><span className="num">{j.stage ?? "—"}</span></KeyValue>
+            <KeyValue label={t("jobs.stage")}><JobStage stage={j.stage} /></KeyValue>
             <KeyValue label={t("jobs.progress")}><JobProgress job={j} /></KeyValue>
             <KeyValue label={t("jobs.attempts")}><span className="num">{j.attempts}/{j.max_attempts}</span></KeyValue>
             <KeyValue label={t("common.created")}><DateText value={j.created_at} withTime /></KeyValue>

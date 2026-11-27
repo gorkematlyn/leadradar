@@ -244,6 +244,8 @@ class Worker:
 
 
 FAILURE_HOOKS: dict[str, Callable[[JobContext, str], None]] = {}
+# Job types whose failure hook already creates a more specific notification.
+SPECIFIC_FAILURE_NOTIFICATIONS: set[str] = set()
 
 
 def _on_failure_hook(ctx: JobContext, outcome: str) -> None:
@@ -253,9 +255,12 @@ def _on_failure_hook(ctx: JobContext, outcome: str) -> None:
             hook(ctx, outcome)
         from leadradar.modules.crm.notifications import notify
 
+        if outcome != "failed" or ctx.job_type in SPECIFIC_FAILURE_NOTIFICATIONS:
+            return
         with session_scope() as db:
-            if outcome == "failed":
-                notify(db, "job_failed", "notifications.jobFailed", {"type": ctx.job_type}, severity="error",
-                       link="/jobs", dedupe_key=f"job_failed:{ctx.job_id}")
+            job = db.get(Job, ctx.job_id)
+            notify(db, "job_failed", "notifications.jobFailedNamed",
+                   {"type": ctx.job_type, "name": job.name if job else ctx.job_type, "job_id": str(ctx.job_id)},
+                   severity="error", link=f"/jobs/{ctx.job_id}", dedupe_key=f"job_failed:{ctx.job_id}")
     except Exception:  # pragma: no cover
         log.exception("failure hook error")

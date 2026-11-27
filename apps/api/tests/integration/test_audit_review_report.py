@@ -30,6 +30,7 @@ def fixture_site():
     t.start()
     yield f"http://127.0.0.1:{PORT}/"
     srv.shutdown()
+    srv.server_close()
 
 
 def chrome_available() -> bool:

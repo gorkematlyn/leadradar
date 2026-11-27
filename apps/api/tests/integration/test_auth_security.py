@@ -36,14 +36,14 @@ def test_private_routes_require_auth(client, method, url):
 
 def test_csrf_token_and_origin_required(auth_client):
     c = auth_client.c
-    r = c.post("/api/tags", json={"name": "x-no-csrf"}, headers={"Origin": "http://testserver"})
+    r = c.post("/api/tags", json={"name_en": "x-no-csrf", "name_tr": "x-no-csrf-tr"}, headers={"Origin": "http://testserver"})
     assert r.status_code == 403 and r.json()["detail"] == "csrf_token"
     token = c.cookies.get("lr_csrf")
-    r = c.post("/api/tags", json={"name": "x-bad-origin"}, headers={"Origin": "https://evil.example", "X-CSRF-Token": token})
+    r = c.post("/api/tags", json={"name_en": "x-bad-origin", "name_tr": "x-bad-origin-tr"}, headers={"Origin": "https://evil.example", "X-CSRF-Token": token})
     assert r.status_code == 403 and r.json()["detail"] == "csrf_origin"
-    r = c.post("/api/tags", json={"name": "x-no-origin"}, headers={"X-CSRF-Token": token})
+    r = c.post("/api/tags", json={"name_en": "x-no-origin", "name_tr": "x-no-origin-tr"}, headers={"X-CSRF-Token": token})
     assert r.status_code == 403
-    assert auth_client.post("/api/tags", json={"name": "csrf-ok"}).status_code == 200
+    assert auth_client.post("/api/tags", json={"name_en": "csrf-ok", "name_tr": "csrf-ok-tr"}).status_code == 200
 
 
 def test_host_header_injection_rejected_with_allowlist(auth_client):

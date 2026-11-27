@@ -175,6 +175,8 @@ def seed_misc(db: Session) -> None:
             db.add(AdvertisingProvider(key=p["key"], automation_status=p["automation_status"], **values))
         else:
             for k, v in values.items():
+                if row.admin_customized and k in ("official_source_url", "manual_search_url_template"):
+                    continue  # keep URLs edited by the administrator
                 setattr(row, k, v)
             if p["automation_status"] == "unsupported":
                 row.automation_status = "unsupported"

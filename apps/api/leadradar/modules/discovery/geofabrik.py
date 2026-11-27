@@ -18,10 +18,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+from urllib.parse import urljoin
 
 import httpx
 
 from leadradar.modules.netsafe.http import make_client, safe_fetch
+from leadradar.modules.netsafe.policy import BlockedDestination, validate_url
 
 INDEX_PATH = "/index-v1-nogeom.json"
 
@@ -148,25 +150,39 @@ def download(
     offset = os.path.getsize(part) if os.path.exists(part) else 0
     headers = {"Range": f"bytes={offset}-"} if offset else {}
     with make_client(timeout=120) as client:
+        url = extract.pbf_url
         try:
-            with client.stream("GET", extract.pbf_url, headers=headers) as resp:
-                if resp.status_code == 416:  # already complete
-                    pass
-                elif resp.status_code == 200 and offset:
-                    offset = 0  # server ignored Range; restart
-                elif resp.status_code not in (200, 206):
-                    raise GeofabrikError(f"download failed with HTTP {resp.status_code}")
-                if resp.status_code in (200, 206):
-                    mode = "ab" if resp.status_code == 206 else "wb"
-                    written = offset
-                    with open(part, mode) as fh:
-                        for chunk in resp.iter_bytes(1 << 20):
-                            fh.write(chunk)
-                            written += len(chunk)
-                            if progress:
-                                progress(written, extract.size)
-                            if should_stop and should_stop():
-                                raise GeofabrikError("cancelled")
+            # Geofabrik answers with 302/307 redirects to its mirrors; each hop is validated
+            # against the egress policy before it is followed.
+            for _ in range(6):
+                try:
+                    validate_url(url)
+                except BlockedDestination as exc:
+                    raise GeofabrikError(f"download blocked: {exc.reason}") from exc
+                with client.stream("GET", url, headers=headers) as resp:
+                    if resp.is_redirect and resp.headers.get("location"):
+                        url = urljoin(url, resp.headers["location"])
+                        continue
+                    if resp.status_code == 416:  # already complete
+                        pass
+                    elif resp.status_code == 200 and offset:
+                        offset = 0  # server ignored Range; restart
+                    elif resp.status_code not in (200, 206):
+                        raise GeofabrikError(f"download failed with HTTP {resp.status_code}")
+                    if resp.status_code in (200, 206):
+                        mode = "ab" if resp.status_code == 206 else "wb"
+                        written = offset
+                        with open(part, mode) as fh:
+                            for chunk in resp.iter_bytes(1 << 20):
+                                fh.write(chunk)
+                                written += len(chunk)
+                                if progress:
+                                    progress(written, extract.size)
+                                if should_stop and should_stop():
+                                    raise GeofabrikError("cancelled")
+                    break
+            else:
+                raise GeofabrikError("download failed: too many redirects")
         except httpx.HTTPError as exc:
             raise GeofabrikError(f"download interrupted: {exc}") from exc
     expected = fetch_md5(extract.pbf_url)

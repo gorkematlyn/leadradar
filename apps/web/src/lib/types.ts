@@ -27,7 +27,7 @@ export interface CompanyRow {
   website_status: string;
   advertising_platforms: string[];
   services: { key: string; score: number; provisional: boolean }[];
-  tags: { id: string; name: string; color: string }[];
+  tags: { id: string; name_en: string; name_tr: string; color: string }[];
   crm_status: string;
   analysis_status: string;
   last_audit_at: string | null;
@@ -79,6 +79,7 @@ export interface Country {
   enabled: boolean;
   is_priority: boolean;
   import_status: string;
+  progress: ImportProgress | null;
   last_import_at: string | null;
   last_source_timestamp: string | null;
   geofabrik_ids: string[] | null;
@@ -103,10 +104,26 @@ export interface Industry {
   rules: { id: string; key: string; description: string; conditions: Record<string, unknown>; classification: string; enabled: boolean }[];
 }
 
+export interface ImportProgress {
+  status: string;
+  job_id: string;
+  regions_total: number;
+  regions_done: number;
+  regions_failed: number;
+  regions_cancelled: number;
+  bytes_total: number | null;
+  bytes_done: number | null;
+  current: { job_id: string; name: string | null; stage: string | null; processed: number | null; total: number | null } | null;
+  error: string | null;
+  started_at: string;
+}
+
 export interface Tag {
   id: string;
-  name: string;
-  description: string | null;
+  name_en: string;
+  name_tr: string;
+  description_en: string | null;
+  description_tr: string | null;
   color: string;
   count: number;
 }

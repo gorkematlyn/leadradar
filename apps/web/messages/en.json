@@ -74,7 +74,18 @@
     "never": "Never",
     "columns": "Columns",
     "sortAsc": "Sort ascending",
-    "sortDesc": "Sort descending"
+    "sortDesc": "Sort descending",
+    "help": "Help",
+    "pageOf": "Page {page} of {pages}",
+    "range": "{from}–{to} of {total}",
+    "first": "First",
+    "last": "Last",
+    "overwrite": "Overwrite",
+    "rename": "Rename",
+    "unsavedChanges": "Unsaved changes",
+    "noChanges": "Nothing changed",
+    "clearAll": "Clear all",
+    "load": "Load"
   },
   "nav": {
     "workspace": "Workspace",
@@ -138,7 +149,12 @@
     "quickAudit": "Quick Audit",
     "noOpportunities": "No scored companies yet",
     "noOpportunitiesHint": "Run audits to calculate evidence-based lead scores.",
-    "noActivity": "No activity yet"
+    "noActivity": "No activity yet",
+    "importProgress": "Import progress",
+    "clearWarnings": "Clear warnings",
+    "clearWarningsConfirm": "Clear the warnings? They are marked as read and the failed-job counter restarts from now. Job records are not deleted.",
+    "warningsCleared": "Warnings cleared",
+    "warningsInfo": "Warnings disappear when the related job is retried, cancelled or deleted, or when you clear them."
   },
   "quickAudit": {
     "title": "Quick Audit",
@@ -179,10 +195,64 @@
     "size": "Size",
     "stats": "Result",
     "coverageNote": "OpenStreetMap coverage varies by country and industry. Missing tags (e.g. website) do not mean a business lacks them. E-commerce brands and digital agencies are poorly represented in OSM; use CSV import, Quick Audit or the optional Apify provider.",
-    "noCountriesSelected": "Select at least one enabled country.",
+    "noCountriesSelected": "Select at least one country with the checkbox on the left. Enabling a country also selects it.",
     "created": "created",
     "updatedCount": "updated",
-    "matched": "matched"
+    "matched": "matched",
+    "explainTitle": "How importing works",
+    "explainEnabled": "Enabled switch: allows a country to be imported. Turning it on also selects the country for the next import; turning it off cancels its queued imports (companies already imported are kept).",
+    "explainSelect": "Checkbox: chooses the countries for this import. Only checked, enabled countries are imported when you press “Start import”.",
+    "explainIndustries": "Industries: leave all unchecked to import every industry that has OSM rules.",
+    "enabledInfo": "Allows this country to be imported. Enabling selects it for the next import automatically.",
+    "selectInfo": "Countries checked here are imported when you press “Start import”.",
+    "forceInfo": "Normally a region is skipped if Geofabrik has not published a newer file since the last import. Check this to download and process it again anyway.",
+    "industriesInfo": "Only businesses that match these industries' OSM rules are imported. Industries marked “manual” have no OSM rule and cannot be imported from OpenStreetMap.",
+    "statusInfo": "Large countries are split into several Geofabrik regions that are downloaded one after another. “3/10 regions” means 3 of 10 regions are finished.",
+    "importStatuses": {
+      "never": "Never imported",
+      "queued": "Queued",
+      "planning": "Planning",
+      "running": "Importing",
+      "paused": "Paused",
+      "completed": "Completed",
+      "partial": "Partly completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "disabled": "Disabled"
+    },
+    "runStatuses": {
+      "queued": "Queued",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "skipped": "Skipped (unchanged)"
+    },
+    "regionsProgress": "{done}/{total} regions",
+    "regionsFailed": "{count} failed",
+    "downloading": "Downloading {name}",
+    "processing": "Processing {name}",
+    "planningRegions": "Planning regions…",
+    "cancelImport": "Cancel import",
+    "pauseImport": "Pause",
+    "resumeImport": "Resume",
+    "cancelCountryConfirm": "Cancel the import of {country}? Regions that are already imported are kept.",
+    "pauseInfo": "Pausing holds the regions that have not started yet. A region that is downloading right now finishes first.",
+    "clearHistory": "Clear history",
+    "clearHistoryConfirm": "Delete the import history? Imports that are still queued or running are kept. Imported companies are not affected.",
+    "historyCleared": "{count} records deleted",
+    "progressTitle": "Import progress",
+    "progressInfo": "Shows the latest import of each country. Bars show downloaded data; regions are processed one after another.",
+    "noActiveImports": "No imports yet.",
+    "selectionExists": "A selection named “{name}” already exists. Overwrite it with the current selection?",
+    "selectionSaved": "Selection saved",
+    "selectionDeleted": "Selection deleted",
+    "editSelection": "Edit selection",
+    "deleteSelectionConfirm": "Delete the saved selection “{name}”?",
+    "selectionEmpty": "Select at least one country or industry before saving.",
+    "updateWithCurrent": "Replace with current selection",
+    "updateWithCurrentInfo": "Stores the countries, regions and industries that are selected on the page right now under this name.",
+    "selectionContents": "{countries} countries · {industries} industries"
   },
   "companies": {
     "title": "Companies",
@@ -779,7 +849,45 @@
     "apiVersion": "API version",
     "rateLimit": "Rate limit / minute",
     "recheckDays": "Re-check after (days)",
-    "duplicates": "Duplicate review"
+    "duplicates": "Duplicate review",
+    "industriesHelp": "An industry groups businesses (e.g. dental clinics). Its OSM rules decide which OpenStreetMap places are imported into it during Discovery.",
+    "rulesTitle": "OSM rules",
+    "rulesInfo": "A rule describes OpenStreetMap tags that identify this industry, for example amenity=dentist. During an import every place is checked against the rules of the selected industries.",
+    "rulesOptional": "Rules are optional. Without any rule the industry is marked “manual”: it is skipped by OpenStreetMap imports, and companies can only be added by CSV import, Quick Audit, Apify or by hand.",
+    "ruleWhy": "Add a rule when businesses of this industry are tagged in OpenStreetMap and you want Discovery to import them. Use the “Test tags” panel to check a rule before importing.",
+    "ruleKeyInfo": "A short unique ID using lower-case letters, digits and _ , for example dentist_amenity. It cannot be changed later.",
+    "ruleDescriptionInfo": "A note for yourself describing what the rule matches.",
+    "conditionsInfo": "JSON object with up to three groups:\n• all – every condition must match\n• any – at least one must match\n• exclude – none may match\nEach condition: '{\"key\": \"amenity\", \"op\": \"eq\", \"value\": \"dentist\"}'.\nOperators: eq (equals), in (one of a list), exists (tag present), regex (pattern).\nFind tags on wiki.openstreetmap.org (Map features).",
+    "classificationInfo": "Confident: matches are assigned to the industry directly. Review candidate: matches are imported but flagged so you can confirm the industry.",
+    "testMatchInfo": "Paste the tags of an OpenStreetMap place (one key=value per line) to see which industry rules match. Nothing is saved.",
+    "manualBadge": "Manual",
+    "manualInfo": "No OSM rule: this industry is not imported from OpenStreetMap.",
+    "keyInfo": "Permanent technical ID (lower-case letters, digits, _). Used in filters and exports.",
+    "priorityInfo": "Sort order and weight (0–100). Higher values appear first.",
+    "isPriorityInfo": "Priority industries get extra target-fit points in scoring.",
+    "relevantServicesInfo": "Services you typically sell to this industry; they shape the service opportunity scores.",
+    "relevantFeaturesInfo": "Conversion features expected on websites of this industry (e.g. booking). Missing ones can raise the service-need score.",
+    "scoringProfileInfo": "Scoring profile used for companies of this industry. Empty = default profile.",
+    "reviewTemplateInfo": "Questions shown to the administrator when reviewing audits of this industry.",
+    "apifyGuideTitle": "Adding an Apify Actor in 4 steps",
+    "apifyGuide": "1. On apify.com open the Actor you want (e.g. a Google Maps scraper) and copy its ID from the URL or the API tab (looks like apify/google-maps-scraper).\n2. Open the Actor's “Input” tab, switch to JSON and copy the parts you want as the input template.\n3. Run it once on Apify and look at one item of the output (Dataset → JSON) to see the field names for the field mapping.\n4. Set a small maximum item count and cost first, then enable the Actor.",
+    "actorIdInfo": "The Actor's ID on Apify, e.g. apify/google-maps-scraper. Find it in the Actor's URL or under API on apify.com.",
+    "purposeInfo": "Discovery: results become companies. Advertising: results are used for ad research.",
+    "maxItemsInfo": "Upper limit of results per run. Start small (e.g. 50) to control cost.",
+    "maxCostInfo": "A run is refused if its estimated cost exceeds this amount in USD. The budgets above apply as well.",
+    "allowedKeysInfo": "Comma-separated input fields you may change when starting a run (e.g. searchStringsArray, locationQuery). Other fields always come from the template.",
+    "inputTemplateInfo": "The Actor's default input as JSON, copied from the Actor's Input tab (JSON view). Example:\n'{\"searchStringsArray\": [\"dentist\"], \"locationQuery\": \"Amsterdam\", \"maxCrawledPlacesPerSearch\": 50}'",
+    "fieldMappingInfo": "Which output field fills which LeadRadar field. Left: LeadRadar field (name, website, phone, email, address, city, country). Right: the field name in the Actor's output. Example:\n'{\"name\": \"title\", \"website\": \"website\", \"phone\": \"phone\"}'",
+    "editUrls": "Edit links",
+    "officialUrl": "Official page",
+    "officialUrlInfo": "Opens when you click the provider's link. Must start with https://.",
+    "searchTemplate": "Search link template",
+    "searchTemplateInfo": "Link opened for manual research of a company. Placeholders: '{query}' = company name, '{domain}' = website domain, '{country}' = country code. Leave empty to use only the official page.",
+    "urlsSaved": "Links saved",
+    "rateLimitInfo": "Maximum automated requests per minute to this provider.",
+    "recheckInfo": "After how many days a company's ads are researched again.",
+    "apiVersionInfo": "Version of the provider's official API (e.g. v23.0 for Meta). Change only when the provider retires the old version.",
+    "accessTokenInfo": "Token for the provider's official API. Stored encrypted and never shown again."
   },
   "savedFilters": {
     "title": "Saved Filters",
@@ -824,7 +932,13 @@
       "red": "Red",
       "violet": "Violet",
       "teal": "Teal"
-    }
+    },
+    "nameEn": "Name (English)",
+    "nameTr": "Name (Turkish)",
+    "descriptionEn": "Description (English)",
+    "descriptionTr": "Description (Turkish)",
+    "bilingualInfo": "Each tag has an English and a Turkish name. Both names belong to the same tag: filters use the tag itself, so it works in either language.",
+    "bothRequired": "Enter the name in both languages."
   },
   "jobs": {
     "title": "Background Jobs",
@@ -856,7 +970,7 @@
       "failed": "Failed",
       "cancelled": "Cancelled",
       "paused": "Paused",
-      "dead": "Dead letter"
+      "dead": "Retries exhausted"
     },
     "types": {
       "geofabrik_country_import": "Country import",
@@ -871,6 +985,31 @@
       "monitor_company": "Monitoring",
       "retention_cleanup": "Retention cleanup",
       "recalculate_scores": "Score recalculation"
+    },
+    "deleteFinished": "Clear finished jobs",
+    "deleteFinishedConfirm": "Delete all finished job records (completed, failed, retries exhausted, cancelled) with their logs? Queued, running and paused jobs are kept.",
+    "deleteJob": "Delete",
+    "deleted": "{count} job records deleted",
+    "statusInfo": {
+      "queued": "Waiting for a free worker slot or for the previous region of the same country.",
+      "running": "A worker is processing this job right now.",
+      "waiting_review": "The automated part is finished; an administrator has to answer the review questions.",
+      "completed": "Finished successfully.",
+      "failed": "Stopped with an error that retrying automatically would not fix. You can retry it manually.",
+      "cancelled": "Cancelled by an administrator.",
+      "paused": "Held until you resume it.",
+      "dead": "Failed on every automatic attempt (the retry limit was reached). Open it to see the error, then retry it manually if the cause is fixed."
+    },
+    "stages": {
+      "download": "Downloading",
+      "extract": "Reading OSM data",
+      "import": "Saving companies",
+      "load_index": "Loading Geofabrik index",
+      "plan_extracts": "Planning regions",
+      "http": "HTTP checks",
+      "browser": "Browser checks",
+      "lighthouse": "Lighthouse",
+      "persist": "Saving results"
     }
   },
   "usage": {
@@ -1019,7 +1158,15 @@
       "apify.max_cost_per_task_usd": "Max cost per task (USD)",
       "apify.alert_percent": "Alert at % of monthly budget",
       "apify.enabled": "Enable Apify"
-    }
+    },
+    "scoringHelp": "The lead score (0–100) is the sum of rule points, capped per category. Changes here only affect companies after their score is recalculated. Every real change creates a new profile version, so older scores stay explainable.",
+    "categoryLimitsInfo": "The maximum points each category can contribute. Example: with Service need = 35, all service-need rules together can add at most 35 points. The four limits may add up to at most 100.",
+    "thresholdsInfo": "Score boundaries for the classification shown in lists. Example: High priority = 80 means a score of 80 or more is labelled “High priority”. Must be ordered high > strong > review.",
+    "confidenceWeightsInfo": "How much each evidence source contributes to the confidence score (how sure we are about the lead score). More audit coverage or a confirmed ad match raises confidence.",
+    "versionInfo": "Profile version. It increases only when you save a real change.",
+    "rulesInfo": "Each rule adds points when its signal is found (for example “no mobile layout”). Change points and press Tab or click outside the field to save. Penalties are negative; exclusions remove a company from ranking.",
+    "serviceRulesInfo": "Service rules calculate the opportunity score for each service you sell (e.g. Meta Ads, web redesign), independent of the lead score.",
+    "recalcInfo": "Queues a background job that recalculates every company's score with the current rules."
   },
   "notifications": {
     "title": "Notifications",
@@ -1034,7 +1181,10 @@
     "lowDisk": "Low disk space: {free_gb} GB free (reserve {reserve_gb} GB).",
     "budgetAlert": "{provider} spending {spent} USD of {budget} USD monthly budget.",
     "adResearchCompleted": "Advertising research completed for {company}.",
-    "auditCompleted": "Quick audit completed for {company}."
+    "auditCompleted": "Quick audit completed for {company}.",
+    "clearAll": "Clear all",
+    "jobFailedNamed": "Background job failed: {name}",
+    "importFailedRegion": "Import failed for {country} ({region})."
   },
   "changes": {
     "title": "Detected changes",
@@ -1070,6 +1220,11 @@
     "invalid_mapping": "Invalid column mapping.",
     "too_many_targets": "Too many companies selected for this action.",
     "actor_disabled": "This Actor is disabled.",
-    "pdf_not_ready": "The PDF is not ready yet."
+    "pdf_not_ready": "The PDF is not ready yet.",
+    "invalid_url": "Enter a complete https:// address.",
+    "invalid_placeholder": "Only '{query}', '{domain}' and '{country}' can be used as placeholders.",
+    "invalid_category_limits": "Category limits must be between 0 and 100 and add up to at most 100.",
+    "invalid_thresholds": "Thresholds must be ordered: high priority > strong potential > requires review (0–100).",
+    "invalid_weights": "Weights must be between 0 and 100."
   }
 }

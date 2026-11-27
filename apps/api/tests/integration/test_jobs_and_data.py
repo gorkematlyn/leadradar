@@ -160,8 +160,8 @@ def test_company_filters_tags_and_export(auth_client, db):
                                                  "website": "https://alpha-filter-test.com.tr"})
     alpha = r.json()["id"]
     beta = auth_client.post("/api/companies", json={"name": "Filter Beta", "country": "TR", "industry": "restaurants"}).json()["id"]
-    t1 = auth_client.post("/api/tags", json={"name": "FT-One"}).json()["id"]
-    t2 = auth_client.post("/api/tags", json={"name": "FT-Two"}).json()["id"]
+    t1 = auth_client.post("/api/tags", json={"name_en": "FT-One", "name_tr": "FT-Bir"}).json()["id"]
+    t2 = auth_client.post("/api/tags", json={"name_en": "FT-Two", "name_tr": "FT-Iki"}).json()["id"]
     auth_client.put(f"/api/companies/{alpha}/tags", json={"tag_ids": [t1, t2]})
     auth_client.put(f"/api/companies/{beta}/tags", json={"tag_ids": [t1]})
 
@@ -172,6 +172,11 @@ def test_company_filters_tags_and_export(auth_client, db):
     assert names({"tags_any": ["FT-One"]}) == ["Filter Alpha", "Filter Beta"]
     assert names({"tags_all": ["FT-One", "FT-Two"]}) == ["Filter Alpha"]
     assert names({"tags_any": ["FT-One"], "tags_exclude": ["FT-Two"]}) == ["Filter Beta"]
+    # Tags are filtered by ID; the language of the name does not matter.
+    assert names({"tags_all": [t1, t2]}) == ["Filter Alpha"]
+    assert names({"tags_any": ["FT-Bir"], "tags_exclude": [t2]}) == ["Filter Beta"]
+    dup = auth_client.post("/api/tags", json={"name_en": "Other", "name_tr": "ft-bir"})
+    assert dup.status_code == 409
     assert names({"has_website": True}) == ["Filter Alpha"]
     assert auth_client.post(f"/api/companies/{beta}/do-not-contact", json={"reason": "asked"}).status_code == 200
     assert names({}) == ["Filter Alpha"]  # DNC excluded from normal lists

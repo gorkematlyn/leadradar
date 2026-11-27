@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { api, ApiError, type ApiOptions } from "@/lib/api";
 
-export function useApi<T>(key: QueryKey, path: string | null, opts?: ApiOptions & { refetchInterval?: number | false }) {
+export function useApi<T>(key: QueryKey, path: string | null, opts?: ApiOptions & { refetchInterval?: number | false | ((data: T | undefined) => number | false) }) {
   const { refetchInterval, ...rest } = opts ?? {};
   return useQuery<T>({
     queryKey: key,
     queryFn: ({ signal }) => api<T>(path as string, { ...rest, signal }),
     enabled: path !== null,
-    refetchInterval,
+    refetchInterval: typeof refetchInterval === "function" ? (q) => refetchInterval(q.state.data as T | undefined) : refetchInterval,
   });
 }
 

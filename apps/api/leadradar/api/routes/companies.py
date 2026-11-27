@@ -71,7 +71,7 @@ def row_view(c: Company, industries: dict[uuid.UUID, Industry]) -> dict[str, Any
         "classification": c.score_classification, "confidence": c.confidence_score, "website_status": c.website_status,
         "advertising_platforms": c.advertising_platforms or [],
         "services": [{"key": k, "score": v["score"], "provisional": v.get("provisional", False)} for k, v in top_services],
-        "tags": [{"id": str(t.id), "name": t.name, "color": t.color} for t in c.tags],
+        "tags": [{"id": str(t.id), "name_en": t.name_en, "name_tr": t.name_tr, "color": t.color} for t in c.tags],
         "crm_status": c.crm_status, "analysis_status": c.analysis_status, "last_audit_at": c.last_audit_at,
         "do_not_contact": c.do_not_contact, "archived": c.archived, "watchlisted": c.watchlisted,
         "follow_up_at": c.follow_up_at,
@@ -384,7 +384,7 @@ def set_tags(company_id: uuid.UUID, body: TagsIn, db: Session = Depends(get_db),
         db.add(CompanyTag(company_id=c.id, tag_id=t))
     db.flush()
     db.refresh(c)
-    return {"tags": [{"id": str(t.id), "name": t.name, "color": t.color} for t in c.tags]}
+    return {"tags": [{"id": str(t.id), "name_en": t.name_en, "name_tr": t.name_tr, "color": t.color} for t in c.tags]}
 
 
 class ActivityIn(BaseModel):

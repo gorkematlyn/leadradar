@@ -39,7 +39,8 @@ def providers(db: Session = Depends(get_db), _: User = Depends(current_user)) ->
         out.append({"key": p.key, "name": p.name, "enabled": p.enabled, "automation_status": p.automation_status,
                     "automation_supported": bool(cls and cls.automated), "credentials_configured": bool(p.credentials_enc),
                     "note_en": p.automation_note_en, "note_tr": p.automation_note_tr,
-                    "official_source_url": p.official_source_url, "config": p.config,
+                    "official_source_url": p.official_source_url,
+                    "manual_search_url_template": p.manual_search_url_template, "config": p.config,
                     "rate_limit_per_minute": p.rate_limit_per_minute, "recheck_days": p.recheck_days})
     return out
 
@@ -50,6 +51,26 @@ class ProviderPatch(BaseModel):
     credentials: dict[str, str] | None = None  # write-only; never returned
     rate_limit_per_minute: int | None = Field(default=None, ge=1, le=60)
     recheck_days: int | None = Field(default=None, ge=1, le=365)
+    official_source_url: str | None = Field(default=None, max_length=500)
+    manual_search_url_template: str | None = Field(default=None, max_length=1000)
+
+
+def _valid_url(value: str) -> str:
+    from urllib.parse import urlsplit
+
+    v = value.strip()
+    parts = urlsplit(v.replace("{", "").replace("}", ""))
+    if parts.scheme != "https" or not parts.netloc or any(c in v for c in " <>\"\n"):
+        raise HTTPException(400, "invalid_url")
+    import string
+
+    try:
+        fields = {f for _, f, _, _ in string.Formatter().parse(v) if f is not None}
+    except ValueError as exc:
+        raise HTTPException(400, "invalid_url") from exc
+    if fields - {"query", "domain", "country"}:
+        raise HTTPException(400, "invalid_placeholder")
+    return v
 
 
 @router.patch("/ad-providers/{key}")
@@ -73,6 +94,12 @@ def patch_provider(key: str, body: ProviderPatch, db: Session = Depends(get_db),
         p.rate_limit_per_minute = body.rate_limit_per_minute
     if body.recheck_days is not None:
         p.recheck_days = body.recheck_days
+    if body.official_source_url is not None:
+        p.official_source_url = _valid_url(body.official_source_url)
+        p.admin_customized = True
+    if body.manual_search_url_template is not None:
+        p.manual_search_url_template = _valid_url(body.manual_search_url_template) if body.manual_search_url_template.strip() else None
+        p.admin_customized = True
     record_activity(db, "settings", "ad_provider_updated", user_id=user.id, entity_type="ad_provider", entity_id=key,
                     details={"credentials_changed": body.credentials is not None})
     return {"ok": True}

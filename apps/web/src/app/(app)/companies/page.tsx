@@ -19,7 +19,7 @@ import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { Badge, Card, EmptyState } from "@/components/ui/misc";
 import { Dialog, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
-import { useTags } from "@/hooks/use-catalog";
+import { useLocalizedName, useSortByName, useTags } from "@/hooks/use-catalog";
 import { api, download } from "@/lib/api";
 import { CRM_STATUSES, type CompanyFilter, type CompanyRow } from "@/lib/types";
 
@@ -32,6 +32,8 @@ function CompaniesView() {
   const qc = useQueryClient();
   const errorMessage = useErrorMessage();
   const { data: tags } = useTags();
+  const sortTags = useSortByName();
+  const tagName = useLocalizedName();
   const [filter, setFilter] = useState<CompanyFilter>({});
   const [q, setQ] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -94,7 +96,7 @@ function CompaniesView() {
         <span className="flex flex-wrap gap-1">{row.original.services.map((s) => <Badge key={s.key}>{t(`services.${s.key}`)}{s.provisional ? "*" : ""}</Badge>)}</span>
       ) : <span className="text-muted">—</span>,
     },
-    { id: "tags", header: t("companies.col.tags"), size: 160, cell: ({ row }) => <span className="flex flex-wrap gap-1">{row.original.tags.map((x) => <TagChip key={x.id} name={x.name} color={x.color} />)}</span> },
+    { id: "tags", header: t("companies.col.tags"), size: 160, cell: ({ row }) => <span className="flex flex-wrap gap-1">{row.original.tags.map((x) => <TagChip key={x.id} tag={x} />)}</span> },
     { id: "crm_status", header: t("companies.col.crmStatus"), size: 130, cell: ({ row }) => <CrmBadge status={row.original.crm_status} /> },
     { id: "analysis_status", header: t("companies.col.analysisStatus"), size: 130, cell: ({ row }) => <AnalysisBadge status={row.original.analysis_status} /> },
     { id: "last_audit", header: t("companies.col.lastAudit"), size: 120, cell: ({ row }) => <DateText value={row.original.last_audit_at} /> },
@@ -219,7 +221,7 @@ function CompaniesView() {
           <Field label={t("nav.tags")}>
             <NativeSelect value={bulk.tag ?? ""} onChange={(e) => setBulk({ ...bulk, tag: e.target.value })}>
               <option value="">—</option>
-              {tags?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              {sortTags(tags).map((x) => <option key={x.id} value={x.id}>{tagName(x)}</option>)}
             </NativeSelect>
           </Field>
         ) : bulk?.action === "set_status" ? (

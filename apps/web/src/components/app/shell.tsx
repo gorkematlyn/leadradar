@@ -15,6 +15,7 @@ import { QuickAuditDialog } from "@/components/app/quick-audit";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger, Popover } from "@/components/ui/overlay";
 import { useApi } from "@/hooks/use-api";
+import { useNotificationText } from "@/hooks/use-notification-text";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
 import { cn, relativeTime } from "@/lib/utils";
@@ -107,15 +108,31 @@ function Notifications() {
   const locale = useLocale();
   const router = useRouter();
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
   const { data } = useApi<{ unread: number; items: NotificationItem[] }>(["notifications"], "/notifications", { refetchInterval: 30_000 });
+  const refresh = () => ["notifications", "dashboard"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   const markAll = async () => {
-    await api("/notifications/read", { body: {} });
-    qc.invalidateQueries({ queryKey: ["notifications"] });
+    await api("/notifications/read", { body: {} }).catch(() => undefined);
+    refresh();
+  };
+  const clearAll = async () => {
+    await api("/notifications/delete", { body: {} }).catch(() => undefined);
+    refresh();
+  };
+  const render = useNotificationText();
+  const text = (n: NotificationItem) => render(n.message_key, n.params);
+  const openItem = (n: NotificationItem) => {
+    // Navigate first; marking as read must never block the navigation.
+    setOpen(false);
+    if (n.link) router.push(n.link);
+    api("/notifications/read", { body: { ids: [n.id] } }).then(refresh, () => undefined);
   };
   return (
     <Popover
+      open={open}
+      onOpenChange={setOpen}
       align="end"
-      className="w-80 p-0"
+      className="w-[min(22rem,calc(100vw-24px))] p-0"
       trigger={
         <Button variant="ghost" size="icon" aria-label={t("title")} className="relative">
           <Bell />
@@ -125,7 +142,10 @@ function Notifications() {
     >
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="text-[13px] font-semibold">{t("title")}</span>
-        {data?.unread ? <Button size="sm" variant="ghost" onClick={markAll}>{t("markAllRead")}</Button> : null}
+        <span className="flex gap-1">
+          {data?.unread ? <Button size="sm" variant="ghost" onClick={markAll}>{t("markAllRead")}</Button> : null}
+          {data?.items.length ? <Button size="sm" variant="ghost" onClick={clearAll}>{t("clearAll")}</Button> : null}
+        </span>
       </div>
       <ul className="max-h-96 overflow-y-auto">
         {!data?.items.length ? <li className="px-3 py-6 text-center text-[12px] text-muted">{t("empty")}</li> : null}
@@ -133,15 +153,11 @@ function Notifications() {
           <li key={n.id}>
             <button
               type="button"
-              onClick={async () => {
-                await api("/notifications/read", { body: { ids: [n.id] } });
-                qc.invalidateQueries({ queryKey: ["notifications"] });
-                if (n.link) router.push(n.link);
-              }}
+              onClick={() => openItem(n)}
               className="flex w-full flex-col gap-0.5 border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-surface-2"
             >
               <span className={cn("text-[13px]", n.read ? "text-muted" : "text-foreground", n.severity === "error" && "text-danger")}>
-                {t.has(n.message_key.replace("notifications.", "")) ? t(n.message_key.replace("notifications.", ""), n.params) : n.message_key}
+                {text(n)}
               </span>
               <span className="text-[11px] text-muted">{relativeTime(n.created_at, locale)}</span>
             </button>

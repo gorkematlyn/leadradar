@@ -1,25 +1,46 @@
 "use client";
 
-import { AlertTriangle, ClipboardCheck, ListChecks, Radar, Trophy } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ClipboardCheck, ListChecks, Radar, Trophy, X } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 import { ClassificationBadge, CountryLabel, PageHeader, ScoreValue } from "@/components/app/bits";
+import { ImportProgressPanel } from "@/components/app/import-progress";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, EmptyState, Skeleton, Stat } from "@/components/ui/misc";
-import { useApi } from "@/hooks/use-api";
+import { Card, CardHeader, EmptyState, InfoTip, Skeleton, Stat } from "@/components/ui/misc";
+import { ConfirmDialog } from "@/components/ui/overlay";
+import { useApi, useErrorMessage } from "@/hooks/use-api";
+import { useNotificationText } from "@/hooks/use-notification-text";
+import { api } from "@/lib/api";
 import { fmtNumber, relativeTime } from "@/lib/utils";
 
 interface Dashboard {
   metrics: Record<string, number>;
   top_opportunities: { id: string; name: string; score: number; confidence: number | null; country: string | null; classification: string | null }[];
   recent_activity: { company: string; company_id: string; kind: string; title: string | null; occurred_at: string }[];
-  warnings: { kind: string; message_key: string; params: Record<string, string | number>; severity: string; link: string | null }[];
+  warnings: { id: string; kind: string; message_key: string; params: Record<string, string | number>; severity: string; link: string | null }[];
 }
 
 export default function OverviewPage() {
   const t = useTranslations();
   const locale = useLocale();
+  const qc = useQueryClient();
+  const err = useErrorMessage();
+  const [clearOpen, setClearOpen] = useState(false);
   const { data, isLoading } = useApi<Dashboard>(["dashboard"], "/dashboard", { refetchInterval: 30_000 });
+  const clearWarnings = async () => {
+    try {
+      await api("/dashboard/warnings/clear", { body: {} });
+      toast.success(t("overview.warningsCleared"));
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+    } catch (e) {
+      toast.error(err(e));
+    }
+  };
+  const msg = useNotificationText();
   const m = data?.metrics ?? {};
   const n = (k: string) => (isLoading ? <Skeleton className="h-6 w-12" /> : fmtNumber(m[k] ?? 0, locale));
   return (
@@ -45,23 +66,27 @@ export default function OverviewPage() {
       </Card>
       {data?.warnings.length || m.failed_jobs_24h ? (
         <Card className="mb-4">
-          <CardHeader title={t("overview.warnings")} />
+          <CardHeader title={<span className="flex items-center gap-1">{t("overview.warnings")}<InfoTip>{t("overview.warningsInfo")}</InfoTip></span>}
+            actions={<Button size="sm" variant="ghost" onClick={() => setClearOpen(true)}><X />{t("overview.clearWarnings")}</Button>} />
           <ul className="divide-y divide-border">
             {m.failed_jobs_24h ? (
               <li className="flex items-center gap-2 px-4 py-2 text-[13px]">
                 <AlertTriangle className="size-4 text-danger" />
-                <Link href="/jobs?status=failed" className="hover:underline">{t("overview.failedJobs")}: <span className="num">{m.failed_jobs_24h}</span></Link>
+                <Link href="/jobs?status=failed&status=dead" className="hover:underline">{t("overview.failedJobs")}: <span className="num">{m.failed_jobs_24h}</span></Link>
               </li>
             ) : null}
-            {data?.warnings.map((w, i) => (
-              <li key={i} className="flex items-center gap-2 px-4 py-2 text-[13px]">
-                <AlertTriangle className={w.severity === "error" ? "size-4 text-danger" : "size-4 text-warning"} />
-                {w.link ? <Link href={w.link} className="hover:underline">{t(w.message_key, w.params)}</Link> : t(w.message_key, w.params)}
+            {data?.warnings.map((w) => (
+              <li key={w.id} className="flex items-center gap-2 px-4 py-2 text-[13px]">
+                <AlertTriangle className={w.severity === "error" ? "size-4 shrink-0 text-danger" : "size-4 shrink-0 text-warning"} />
+                {w.link ? <Link href={w.link} className="min-w-0 hover:underline">{msg(w.message_key, w.params)}</Link> : msg(w.message_key, w.params)}
               </li>
             ))}
           </ul>
         </Card>
       ) : null}
+      <ConfirmDialog open={clearOpen} onOpenChange={setClearOpen} title={t("overview.clearWarnings")} message={t("overview.clearWarningsConfirm")}
+        confirmLabel={t("overview.clearWarnings")} cancelLabel={t("common.cancel")} onConfirm={clearWarnings} />
+      <ImportProgressPanel className="mb-4" />
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Card>
           <CardHeader title={t("overview.topOpportunities")} actions={<Button asChild size="sm" variant="ghost"><Link href="/companies">{t("nav.companies")}</Link></Button>} />

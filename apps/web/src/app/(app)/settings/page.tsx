@@ -10,7 +10,7 @@ import { DateText, PageHeader } from "@/components/app/bits";
 import { SettingsForm } from "@/components/app/settings-form";
 import { Button } from "@/components/ui/button";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
-import { Badge, Card, CardHeader, Checkbox, Progress, Switch } from "@/components/ui/misc";
+import { Badge, Callout, Card, CardHeader, Checkbox, InfoTip, Progress, Switch, Tooltip } from "@/components/ui/misc";
 import { Dialog, Tabs } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
 import { useSession } from "@/hooks/use-session";
@@ -142,23 +142,38 @@ interface Profile {
   rules: { id: string; key: string; kind: string; category: string | null; signal: string; points: number; exclusive_group: string | null; title_en: string; title_tr: string; enabled: boolean; version: number }[];
 }
 
-function NumMap({ label, value, onSave }: { label: string; value: Record<string, number>; onSave: (v: Record<string, number>) => void }) {
+/** Editable number group. "Save" is enabled only when a value differs from the stored one,
+ * so saving never creates a new profile version without a real change. */
+function NumMap({ label, info, value, onSave, showTotal }: { label: string; info?: string; value: Record<string, number>; onSave: (v: Record<string, number>) => Promise<unknown>; showTotal?: boolean }) {
   const t = useTranslations();
+  const [draft, setDraft] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(value).map(([k, v]) => [k, String(v)])));
+  const parsed = Object.fromEntries(Object.keys(value).map((k) => [k, Number(draft[k])]));
+  const valid = Object.keys(value).every((k) => draft[k] !== "" && Number.isFinite(Number(draft[k])));
+  const dirty = Object.keys(value).some((k) => Number(draft[k]) !== value[k] || draft[k] === "");
+  const total = Object.values(parsed).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0);
   return (
     <Card className="p-3">
-      <p className="mb-2 text-[12px] font-medium text-muted">{label}</p>
-      <form className="grid gap-2" onSubmit={(e) => {
+      <p className="mb-2 flex items-center gap-1 text-[12px] font-medium text-muted">{label}{info ? <InfoTip>{info}</InfoTip> : null}</p>
+      <form className="grid gap-2" onSubmit={async (e) => {
         e.preventDefault();
-        const fd = new FormData(e.currentTarget);
-        onSave(Object.fromEntries(Object.keys(value).map((k) => [k, Number(fd.get(k))])));
+        if (dirty && valid) await onSave(parsed);
       }}>
-        {Object.entries(value).map(([k, v]) => (
+        {Object.keys(value).map((k) => (
           <label key={k} className="grid grid-cols-[1fr_80px] items-center gap-2 text-[12px]">
-            <span>{t.has(`score.category.${k}`) ? t(`score.category.${k}`) : t.has(`score.components.${k}`) ? t(`score.components.${k}`) : t.has(`score.classification.${k}`) ? t(`score.classification.${k}`) : k}</span>
-            <Input name={k} type="number" className="num h-7" defaultValue={v} />
+            <span className="min-w-0">{t.has(`score.category.${k}`) ? t(`score.category.${k}`) : t.has(`score.components.${k}`) ? t(`score.components.${k}`) : t.has(`score.classification.${k}`) ? t(`score.classification.${k}`) : k}</span>
+            <Input name={k} type="number" inputMode="numeric" className="num h-7" value={draft[k] ?? ""} onChange={(e) => setDraft({ ...draft, [k]: e.target.value })} />
           </label>
         ))}
-        <div><Button size="sm" type="submit">{t("common.save")}</Button></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" type="submit" variant={dirty ? "primary" : "secondary"} disabled={!dirty || !valid}>{t("common.save")}</Button>
+          {dirty ? (
+            <>
+              <Button size="sm" type="button" variant="ghost" onClick={() => setDraft(Object.fromEntries(Object.entries(value).map(([k, v]) => [k, String(v)])))}>{t("common.reset")}</Button>
+              <span className="text-[11px] text-warning">{t("common.unsavedChanges")}</span>
+            </>
+          ) : <span className="text-[11px] text-muted">{t("common.noChanges")}</span>}
+          {showTotal ? <span className={total > 100 ? "num ml-auto text-[11px] text-danger" : "num ml-auto text-[11px] text-muted"}>Σ {total}/100</span> : null}
+        </div>
       </form>
     </Card>
   );
@@ -181,17 +196,21 @@ function ScoringTab() {
         <NativeSelect className="w-64" value={p.id} onChange={(e) => setSel(e.target.value)}>
           {profiles?.map((x) => <option key={x.id} value={x.id}>{locale === "tr" ? x.name_tr : x.name_en}{x.is_default ? " ★" : ""}</option>)}
         </NativeSelect>
-        <Badge>v{p.version}</Badge>
+        <Tooltip content={t("settings.versionInfo")}><span><Badge>v{p.version}</Badge></span></Tooltip>
         <Button size="sm" onClick={() => setClone({ key: `${p.key}_copy`, name_en: `${p.name_en} (copy)`, name_tr: `${p.name_tr} (kopya)` })}>{t("settings.clone")}</Button>
-        <Button size="sm" className="ml-auto" onClick={() => act(() => api("/scoring/recalculate-all", { body: {}, query: { profile_key: undefined } }), [], t("settings.recalcQueued"))}>{t("settings.recalcAll")}</Button>
+        <span className="ml-auto flex items-center gap-1">
+          <Button size="sm" onClick={() => act(() => api("/scoring/recalculate-all", { body: {}, query: { profile_key: undefined } }), [], t("settings.recalcQueued"))}>{t("settings.recalcAll")}</Button>
+          <InfoTip>{t("settings.recalcInfo")}</InfoTip>
+        </span>
       </div>
+      <Callout>{t("settings.scoringHelp")}</Callout>
       <div className="grid gap-3 md:grid-cols-3" key={p.id + p.version}>
-        <NumMap label={t("settings.categoryLimits")} value={p.category_limits} onSave={(v) => patchProfile({ category_limits: v })} />
-        <NumMap label={t("settings.thresholds")} value={p.thresholds} onSave={(v) => patchProfile({ thresholds: v })} />
-        <NumMap label={t("settings.confidenceWeights")} value={p.confidence_weights} onSave={(v) => patchProfile({ confidence_weights: v })} />
+        <NumMap label={t("settings.categoryLimits")} info={t("settings.categoryLimitsInfo")} showTotal value={p.category_limits} onSave={(v) => patchProfile({ category_limits: v })} />
+        <NumMap label={t("settings.thresholds")} info={t("settings.thresholdsInfo")} value={p.thresholds} onSave={(v) => patchProfile({ thresholds: v })} />
+        <NumMap label={t("settings.confidenceWeights")} info={t("settings.confidenceWeightsInfo")} value={p.confidence_weights} onSave={(v) => patchProfile({ confidence_weights: v })} />
       </div>
       <Card>
-        <CardHeader title={t("settings.rules")} description={t("score.adsNote")} />
+        <CardHeader title={<span className="flex items-center gap-1">{t("settings.rules")}<InfoTip>{t("settings.rulesInfo")}</InfoTip></span>} description={t("score.adsNote")} />
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead><tr className="border-b border-border text-left text-muted"><th className="px-4 py-2 font-medium">{t("common.name")}</th><th className="px-2 py-2 font-medium">{t("common.type")}</th><th className="px-2 py-2 font-medium">{t("settings.signal")}</th><th className="px-2 py-2 font-medium">{t("settings.group")}</th><th className="px-2 py-2 font-medium">{t("settings.points")}</th><th className="px-4 py-2 font-medium">{t("common.enabled")}</th></tr></thead>
@@ -211,7 +230,7 @@ function ScoringTab() {
         </div>
       </Card>
       <Card>
-        <CardHeader title={t("settings.serviceRules")} />
+        <CardHeader title={<span className="flex items-center gap-1">{t("settings.serviceRules")}<InfoTip>{t("settings.serviceRulesInfo")}</InfoTip></span>} />
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]">
             <tbody>

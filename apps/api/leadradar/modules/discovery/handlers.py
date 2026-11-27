@@ -225,13 +225,16 @@ def _import_failed(ctx: JobContext, outcome: str) -> None:
         if country:
             country.import_status = "failed" if outcome == "failed" else "cancelled"
         if outcome == "failed":
-            notify(db, "import_failed", "notifications.importFailed", {"country": ctx.payload.get("country")},
-                   severity="error", link="/jobs")
+            notify(db, "import_failed", "notifications.importFailedRegion",
+                   {"country": ctx.payload.get("country"), "region": ctx.payload.get("region_name") or ctx.payload.get("extract_id"),
+                    "job_id": str(ctx.job_id)},
+                   severity="error", link=f"/jobs/{ctx.job_id}", dedupe_key=f"import_failed:{ctx.job_id}")
 
 
-from leadradar.jobs.runtime import FAILURE_HOOKS  # noqa: E402
+from leadradar.jobs.runtime import FAILURE_HOOKS, SPECIFIC_FAILURE_NOTIFICATIONS  # noqa: E402
 
 FAILURE_HOOKS["geofabrik_extract_import"] = _import_failed
+SPECIFIC_FAILURE_NOTIFICATIONS.add("geofabrik_extract_import")
 
 # --- CSV import --------------------------------------------------------------------------
 

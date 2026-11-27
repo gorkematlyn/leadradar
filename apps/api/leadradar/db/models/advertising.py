@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy import false as sa_false
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,6 +40,9 @@ class AdvertisingProvider(Base, TimestampMixin):
     rate_limit_per_minute: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
     recheck_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # True once an administrator edited the URLs; seeding then leaves them alone.
+    admin_customized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False,
+                                                   server_default=sa_false())
 
 
 class Advertiser(Base, TimestampMixin):

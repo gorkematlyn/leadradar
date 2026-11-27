@@ -3,6 +3,7 @@
 import { Dialog as D, DropdownMenu as DM, Popover as P, Tabs as T } from "radix-ui";
 import { X } from "lucide-react";
 import * as React from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function Dialog({ open, onOpenChange, title, description, children, footer, wide }: {
@@ -26,6 +27,27 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
         </D.Content>
       </D.Portal>
     </D.Root>
+  );
+}
+
+/** Yes/no confirmation. Nothing happens unless the user presses the confirm button. */
+export function ConfirmDialog({ open, onOpenChange, title, message, confirmLabel, cancelLabel, danger, onConfirm }: {
+  open: boolean; onOpenChange: (v: boolean) => void; title: React.ReactNode; message?: React.ReactNode;
+  confirmLabel: React.ReactNode; cancelLabel: React.ReactNode; danger?: boolean; onConfirm: () => unknown | Promise<unknown>;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  return (
+    <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)} title={title}
+      footer={<>
+        <Button size="sm" disabled={busy} onClick={() => onOpenChange(false)}>{cancelLabel}</Button>
+        <Button size="sm" variant={danger ? "danger" : "primary"} disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { await onConfirm(); } finally { setBusy(false); }
+          onOpenChange(false);
+        }}>{confirmLabel}</Button>
+      </>}>
+      {message ? <p className="text-[13px] leading-relaxed text-muted">{message}</p> : null}
+    </Dialog>
   );
 }
 
@@ -62,9 +84,11 @@ export function MenuLabel({ children }: { children: React.ReactNode }) {
   return <DM.Label className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</DM.Label>;
 }
 
-export function Popover({ trigger, children, align = "start", className }: { trigger: React.ReactNode; children: React.ReactNode; align?: "start" | "end"; className?: string }) {
+export function Popover({ trigger, children, align = "start", className, open, onOpenChange }: {
+  trigger: React.ReactNode; children: React.ReactNode; align?: "start" | "end"; className?: string; open?: boolean; onOpenChange?: (v: boolean) => void;
+}) {
   return (
-    <P.Root>
+    <P.Root open={open} onOpenChange={onOpenChange}>
       <P.Trigger asChild>{trigger}</P.Trigger>
       <P.Portal>
         <P.Content align={align} sideOffset={4} className={cn("z-50 w-72 rounded-md border border-border bg-surface p-3 shadow-md", className)}>

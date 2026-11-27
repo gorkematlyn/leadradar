@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Flag } from "@/components/app/bits";
 import { MultiSelect } from "@/components/app/multi-select";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
-import { useCountries, useIndustries, useLocalizedName, useRegions, useTags } from "@/hooks/use-catalog";
+import { useCountries, useIndustries, useLocalizedName, useRegions, useSortByName, useTags } from "@/hooks/use-catalog";
 import {
   AD_PLATFORMS, ANALYSIS_STATUSES, CLASSIFICATIONS, CRM_STATUSES, SERVICES, TRACKING_TECH, WEBSITE_STATUSES,
   type CompanyFilter,
@@ -13,22 +13,23 @@ import {
 export function CompanyFilters({ value, onChange }: { value: CompanyFilter; onChange: (f: CompanyFilter) => void }) {
   const t = useTranslations();
   const name = useLocalizedName();
+  const sortByName = useSortByName();
   const { data: countries } = useCountries();
   const { data: regions } = useRegions();
   const { data: industries } = useIndustries();
   const { data: tags } = useTags();
   const set = <K extends keyof CompanyFilter>(k: K, v: CompanyFilter[K]) => onChange({ ...value, [k]: v });
   const num = (v: string) => (v === "" ? null : Math.max(0, Math.min(100, Number(v))));
-  const tagOptions = (tags ?? []).map((x) => ({ value: x.name, label: x.name }));
+  const tagOptions = sortByName(tags).map((x) => ({ value: x.id, label: name(x) }));
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
         <MultiSelect label={t("companies.f.regions")} value={value.regions ?? []} onChange={(v) => set("regions", v)}
           options={(regions ?? []).map((r) => ({ value: r.code, label: name(r) }))} />
         <MultiSelect label={t("companies.f.countries")} searchable value={value.countries ?? []} onChange={(v) => set("countries", v)}
-          options={(countries ?? []).map((c) => ({ value: c.iso2, label: name(c), icon: <Flag code={c.flag} /> }))} />
+          options={sortByName(countries).map((c) => ({ value: c.iso2, label: name(c), icon: <Flag code={c.flag} /> }))} />
         <MultiSelect label={t("companies.f.industries")} value={value.industries ?? []} onChange={(v) => set("industries", v)}
-          options={(industries ?? []).map((i) => ({ value: i.key, label: name(i) }))} />
+          options={sortByName(industries).map((i) => ({ value: i.key, label: name(i) }))} />
         <MultiSelect label={t("companies.f.classification")} value={value.classifications ?? []} onChange={(v) => set("classifications", v)}
           options={CLASSIFICATIONS.map((c) => ({ value: c, label: t(`score.classification.${c}`) }))} />
         <MultiSelect label={t("companies.f.crmStatus")} value={value.crm_status ?? []} onChange={(v) => set("crm_status", v)}

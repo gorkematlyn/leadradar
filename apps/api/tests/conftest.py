@@ -129,6 +129,15 @@ def client(migrated_db):  # type: ignore[no-untyped-def]
 
 @pytest.fixture
 def auth_client(client, admin_user):  # type: ignore[no-untyped-def]
+    # Every test logs in from the same test IP; reset the login rate limiter so the suite's
+    # size does not trip it (the limiter itself is covered by the auth security tests).
+    from sqlalchemy import text
+
+    from leadradar.db.session import session_scope
+
+    with session_scope() as s:
+        s.execute(text("DELETE FROM rate_limit_buckets"))
+        s.execute(text("DELETE FROM login_attempts"))
     r = client.post("/api/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD})
     assert r.status_code == 200, r.text
     return client

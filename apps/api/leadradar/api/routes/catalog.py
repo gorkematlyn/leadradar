@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from leadradar.api.deps import current_user
@@ -26,6 +26,12 @@ from leadradar.db.models import (
 from leadradar.db.session import get_db
 from leadradar.jobs import queue
 from leadradar.modules.discovery.matching import compile_rules
+from leadradar.modules.discovery.status import (
+    country_action,
+    country_progress,
+    display_status,
+    on_job_cancelled,
+)
 
 router = APIRouter(tags=["catalog"])
 
@@ -40,11 +46,42 @@ def regions(db: Session = Depends(get_db), _: User = Depends(current_user)) -> l
 def countries(db: Session = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
     counts = dict(db.execute(select(Company.country_iso2, func.count()).where(Company.merged_into_id.is_(None))
                              .group_by(Company.country_iso2)).all())
+    progress = country_progress(db)
     return [{"iso2": c.iso2, "iso3": c.iso3, "name_en": c.name_en, "name_tr": c.name_tr, "region": c.region_code,
-             "flag": c.flag_asset, "enabled": c.enabled, "is_priority": c.is_priority, "import_status": c.import_status,
+             "flag": c.flag_asset, "enabled": c.enabled, "is_priority": c.is_priority,
+             "import_status": display_status(c, progress.get(c.iso2)), "progress": progress.get(c.iso2),
              "last_import_at": c.last_import_at, "last_source_timestamp": c.last_source_timestamp,
              "geofabrik_ids": c.geofabrik_ids, "companies": counts.get(c.iso2, 0)}
             for c in db.scalars(select(Country).order_by(Country.name_en))]
+
+
+@router.get("/discovery/progress")
+def discovery_progress(db: Session = Depends(get_db), _: User = Depends(current_user)) -> list[dict]:
+    """Import batches per country (latest batch), for progress bars on Discovery and Overview."""
+    progress = country_progress(db)
+    if not progress:
+        return []
+    out = []
+    for c in db.scalars(select(Country).where(Country.iso2.in_(list(progress)))):
+        p = progress[c.iso2]
+        out.append({"iso2": c.iso2, "name_en": c.name_en, "name_tr": c.name_tr, "region": c.region_code,
+                    "flag": c.flag_asset, **p, "status": display_status(c, p)})
+    return out
+
+
+class CountryAction(BaseModel):
+    action: Literal["cancel", "pause", "resume"]
+
+
+@router.post("/discovery/countries/{iso2}/action")
+def discovery_country_action(iso2: str, body: CountryAction, db: Session = Depends(get_db),
+                             user: User = Depends(current_user)) -> dict:
+    if db.get(Country, iso2.upper()) is None:
+        raise HTTPException(404, "not_found")
+    affected = country_action(db, iso2, body.action)
+    record_activity(db, "data", f"import_{body.action}", user_id=user.id, entity_type="country",
+                    entity_id=iso2.upper(), details={"jobs": affected})
+    return {"affected": affected}
 
 
 class CountryPatch(BaseModel):
@@ -66,6 +103,7 @@ def patch_country(iso2: str, body: CountryPatch, db: Session = Depends(get_db), 
                                                     Job.status.in_(["queued", "paused"]))):
                 if (job.payload or {}).get("country") == c.iso2:
                     queue.cancel(db, job)
+                    on_job_cancelled(db, job)
             c.import_status = "disabled"
         elif c.import_status == "disabled":
             c.import_status = "never" if c.last_import_at is None else "completed"
@@ -110,6 +148,20 @@ def start_imports(body: ImportIn, db: Session = Depends(get_db), user: User = De
         c.import_status = "queued"
         jobs.append(str(j.id))
     return {"jobs": jobs}
+
+
+@router.delete("/discovery/imports")
+def clear_import_runs(db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Delete the import history. Runs that are still queued or running are kept."""
+    active_jobs = select(Job.id).where(Job.status.in_(["queued", "running", "paused"]))
+    res = db.execute(delete(ImportRun).where(ImportRun.status.notin_(["queued", "running"]))
+                     .where(or_(ImportRun.job_id.is_(None), ImportRun.job_id.notin_(active_jobs))))
+    # Runs left "queued" by an earlier version after their job was cancelled are stale as well.
+    stale = db.execute(delete(ImportRun).where(ImportRun.status.in_(["queued", "running"]),
+                                               or_(ImportRun.job_id.is_(None), ImportRun.job_id.notin_(active_jobs))))
+    deleted = (res.rowcount or 0) + (stale.rowcount or 0)
+    record_activity(db, "data", "import_history_cleared", user_id=user.id, details={"deleted": deleted})
+    return {"deleted": deleted}
 
 
 @router.get("/discovery/imports")
@@ -293,10 +345,36 @@ def geo_list(db: Session = Depends(get_db), _: User = Depends(current_user)) -> 
 
 
 @router.post("/geo-selections")
-def geo_create(body: GeoIn, db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
-    g = SavedGeoSelection(**body.model_dump())
+def geo_create(body: GeoIn, overwrite: bool = False, db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
+    """Names are unique (case-insensitive). An existing name is replaced only with ``overwrite=true``."""
+    name = body.name.strip()
+    existing = db.scalar(select(SavedGeoSelection).where(func.lower(SavedGeoSelection.name) == name.lower()))
+    if existing is not None:
+        if not overwrite:
+            raise HTTPException(409, "exists")
+        for k, v in body.model_dump().items():
+            setattr(existing, k, v)
+        existing.name = name
+        return {"id": str(existing.id), "overwritten": True}
+    g = SavedGeoSelection(**{**body.model_dump(), "name": name})
     db.add(g)
     db.flush()
+    return {"id": str(g.id), "overwritten": False}
+
+
+@router.put("/geo-selections/{gid}")
+def geo_update(gid: uuid.UUID, body: GeoIn, db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
+    g = db.get(SavedGeoSelection, gid)
+    if g is None:
+        raise HTTPException(404, "not_found")
+    name = body.name.strip()
+    clash = db.scalar(select(SavedGeoSelection.id).where(func.lower(SavedGeoSelection.name) == name.lower(),
+                                                         SavedGeoSelection.id != gid))
+    if clash:
+        raise HTTPException(409, "exists")
+    for k, v in body.model_dump().items():
+        setattr(g, k, v)
+    g.name = name
     return {"id": str(g.id)}
 
 

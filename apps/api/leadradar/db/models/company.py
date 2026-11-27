@@ -169,8 +169,10 @@ class Tag(Base, TimestampMixin):
     __tablename__ = "tags"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
-    name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    description: Mapped[str | None] = mapped_column(String(300))
+    name_en: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    name_tr: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    description_en: Mapped[str | None] = mapped_column(String(300))
+    description_tr: Mapped[str | None] = mapped_column(String(300))
     color: Mapped[str] = mapped_column(String(16), nullable=False, default="neutral")
 
 

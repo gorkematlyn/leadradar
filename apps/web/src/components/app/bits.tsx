@@ -103,8 +103,11 @@ const TAG_COLORS: Record<string, string> = {
   teal: "border-[#2d7f7a]/40 text-[#22706b] dark:text-[#7fd1ca]",
 };
 
-export function TagChip({ name, color }: { name: string; color: string }) {
-  return <span className={cn("inline-flex h-5 items-center rounded-sm border px-1.5 text-[11px]", TAG_COLORS[color] ?? TAG_COLORS.neutral)}>{name}</span>;
+/** Tag label in the active language. Tags are identified by ID; the name is only for display. */
+export function TagChip({ tag }: { tag: { name_en: string; name_tr: string; color: string } }) {
+  const locale = useLocale();
+  const name = (locale === "tr" ? tag.name_tr : tag.name_en) || tag.name_en || tag.name_tr || "…";
+  return <span className={cn("inline-flex h-5 items-center rounded-sm border px-1.5 text-[11px]", TAG_COLORS[tag.color] ?? TAG_COLORS.neutral)}>{name}</span>;
 }
 
 export function PlatformChips({ platforms }: { platforms: string[] }) {

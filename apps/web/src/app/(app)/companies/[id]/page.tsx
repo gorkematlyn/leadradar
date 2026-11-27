@@ -20,7 +20,7 @@ import { Field, Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Badge, Card, CardHeader, Checkbox, Skeleton } from "@/components/ui/misc";
 import { Dialog, Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger, Tabs } from "@/components/ui/overlay";
 import { useApi, useErrorMessage } from "@/hooks/use-api";
-import { useCountries, useIndustries, useLocalizedName, useTags } from "@/hooks/use-catalog";
+import { useCountries, useIndustries, useLocalizedName, useSortByName, useTags } from "@/hooks/use-catalog";
 import { api } from "@/lib/api";
 import { CRM_STATUSES } from "@/lib/types";
 
@@ -34,6 +34,7 @@ function CompanyView() {
   const qc = useQueryClient();
   const err = useErrorMessage();
   const nameOf = useLocalizedName();
+  const sortByName = useSortByName();
   const [tab, setTab] = useState(params.get("tab") ?? "overview");
   const [dialog, setDialog] = useState<DialogKind>(null);
   const { data: c, isLoading } = useApi<CompanyDetail>(["company", id], `/companies/${id}`, { refetchInterval: 20_000 });
@@ -102,7 +103,7 @@ function CompanyView() {
             <WebsiteStatusBadge status={c.website_status} />
             <CrmBadge status={c.crm_status} />
             <AnalysisBadge status={c.analysis_status} />
-            {c.tags.map((x) => <TagChip key={x.id} name={x.name} color={x.color} />)}
+            {c.tags.map((x) => <TagChip key={x.id} tag={x} />)}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -272,11 +273,11 @@ function CompanyView() {
           }
         }}>{t("common.save")}</Button></>}>
         <ul className="grid gap-1.5">
-          {tags?.map((x) => (
+          {sortByName(tags).map((x) => (
             <li key={x.id}>
               <label className="flex items-center gap-2 text-[13px]">
-                <Checkbox label={x.name} checked={tagIds.includes(x.id)} onCheckedChange={(v) => setTagIds(v ? [...tagIds, x.id] : tagIds.filter((y) => y !== x.id))} />
-                <TagChip name={x.name} color={x.color} />
+                <Checkbox label={x.name_en} checked={tagIds.includes(x.id)} onCheckedChange={(v) => setTagIds(v ? [...tagIds, x.id] : tagIds.filter((y) => y !== x.id))} />
+                <TagChip tag={x} />
               </label>
             </li>
           ))}

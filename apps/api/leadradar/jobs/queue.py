@@ -6,6 +6,8 @@
 * Running jobs hold a lease that is extended by heartbeats. Expired leases are
   recovered by the scheduler (requeued with backoff, or dead-lettered).
 * Idempotency keys prevent duplicate active jobs.
+* ``depends_on`` orders work: a job waits while a dependency is still active. A failed or
+  cancelled dependency does not block the rest (one failed region must not stall a country).
 """
 
 from __future__ import annotations
@@ -122,7 +124,7 @@ _CLAIM_SQL = text(
       AND (j.concurrency_key IS NULL OR NOT EXISTS (
             SELECT 1 FROM jobs r WHERE r.status = 'running' AND r.concurrency_key = j.concurrency_key))
       AND NOT EXISTS (
-            SELECT 1 FROM jobs d WHERE d.id = ANY(j.depends_on) AND d.status NOT IN ('completed', 'waiting_review'))
+            SELECT 1 FROM jobs d WHERE d.id = ANY(j.depends_on) AND d.status IN ('queued', 'running', 'paused'))
     ORDER BY j.priority ASC, j.run_at ASC
     LIMIT 1
     FOR UPDATE SKIP LOCKED

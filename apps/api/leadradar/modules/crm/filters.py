@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Select, and_, exists, func, or_, select
+from sqlalchemy import Select, and_, exists, false, func, or_, select
 
 from leadradar.db.models import (
     Company,
@@ -58,10 +58,25 @@ SORTS: dict[str, Any] = {
 }
 
 
-def _tag_ids_subq(names: list[str]):  # type: ignore[no-untyped-def]
+def _tag_ids_subq(values: list[str]):  # type: ignore[no-untyped-def]
+    """Tags are filtered by ID. Plain names (older links/saved filters) still match either language."""
+    import uuid as _uuid
+
     from leadradar.db.models import Tag
 
-    return select(Tag.id).where(func.lower(Tag.name).in_([n.lower() for n in names]))
+    ids, names = [], []
+    for v in values:
+        try:
+            ids.append(_uuid.UUID(str(v)))
+        except ValueError:
+            names.append(str(v).lower())
+    conds = []
+    if ids:
+        conds.append(Tag.id.in_(ids))
+    if names:
+        conds.append(func.lower(Tag.name_en).in_(names))
+        conds.append(func.lower(Tag.name_tr).in_(names))
+    return select(Tag.id).where(or_(*conds)) if conds else select(Tag.id).where(false())
 
 
 def apply_filter(q: Select, f: CompanyFilter) -> Select:

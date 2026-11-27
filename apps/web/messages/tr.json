@@ -74,7 +74,18 @@
     "never": "Hiç",
     "columns": "Sütunlar",
     "sortAsc": "Artan sırala",
-    "sortDesc": "Azalan sırala"
+    "sortDesc": "Azalan sırala",
+    "help": "Yardım",
+    "pageOf": "Sayfa {page} / {pages}",
+    "range": "{total} kayıttan {from}–{to}",
+    "first": "İlk",
+    "last": "Son",
+    "overwrite": "Üzerine yaz",
+    "rename": "Yeniden adlandır",
+    "unsavedChanges": "Kaydedilmemiş değişiklikler",
+    "noChanges": "Değişiklik yok",
+    "clearAll": "Tümünü temizle",
+    "load": "Yükle"
   },
   "nav": {
     "workspace": "Çalışma alanı",
@@ -138,7 +149,12 @@
     "quickAudit": "Hızlı Denetim",
     "noOpportunities": "Henüz puanlanmış şirket yok",
     "noOpportunitiesHint": "Kanıta dayalı puanlar için denetim çalıştırın.",
-    "noActivity": "Henüz etkinlik yok"
+    "noActivity": "Henüz etkinlik yok",
+    "importProgress": "İçe aktarma ilerlemesi",
+    "clearWarnings": "Uyarıları temizle",
+    "clearWarningsConfirm": "Uyarılar temizlensin mi? Okundu olarak işaretlenir ve başarısız iş sayacı şu andan itibaren yeniden başlar. İş kayıtları silinmez.",
+    "warningsCleared": "Uyarılar temizlendi",
+    "warningsInfo": "İlgili iş yeniden denendiğinde, iptal edildiğinde veya silindiğinde ya da siz temizlediğinizde uyarılar kaybolur."
   },
   "quickAudit": {
     "title": "Hızlı Denetim",
@@ -179,10 +195,64 @@
     "size": "Boyut",
     "stats": "Sonuç",
     "coverageNote": "OpenStreetMap kapsamı ülkeye ve sektöre göre değişir. Eksik etiketler (ör. web sitesi), işletmenin bunlara sahip olmadığı anlamına gelmez. E-ticaret markaları ve dijital ajanslar OSM'de zayıf temsil edilir; CSV içe aktarma, Hızlı Denetim veya isteğe bağlı Apify sağlayıcısını kullanın.",
-    "noCountriesSelected": "En az bir etkin ülke seçin.",
+    "noCountriesSelected": "Soldaki onay kutusuyla en az bir ülke seçin. Bir ülkeyi etkinleştirmek onu da seçer.",
     "created": "oluşturuldu",
     "updatedCount": "güncellendi",
-    "matched": "eşleşti"
+    "matched": "eşleşti",
+    "explainTitle": "İçe aktarma nasıl çalışır?",
+    "explainEnabled": "Etkin anahtarı: ülkenin içe aktarılmasına izin verir. Açtığınızda ülke bir sonraki içe aktarma için otomatik olarak seçilir; kapattığınızda sıradaki içe aktarmaları iptal edilir (önceden aktarılan şirketler korunur).",
+    "explainSelect": "Onay kutusu: bu içe aktarmaya hangi ülkelerin gireceğini seçer. “İçe aktarmayı başlat”a bastığınızda yalnızca işaretli ve etkin ülkeler içe aktarılır.",
+    "explainIndustries": "Sektörler: hiçbirini işaretlemezseniz OSM kuralı olan tüm sektörler içe aktarılır.",
+    "enabledInfo": "Bu ülkenin içe aktarılmasına izin verir. Etkinleştirdiğinizde ülke bir sonraki içe aktarma için otomatik seçilir.",
+    "selectInfo": "Burada işaretlenen ülkeler “İçe aktarmayı başlat”a bastığınızda içe aktarılır.",
+    "forceInfo": "Normalde Geofabrik son içe aktarmadan bu yana yeni bir dosya yayımlamadıysa bölge atlanır. Yine de indirip yeniden işlemek için bunu işaretleyin.",
+    "industriesInfo": "Yalnızca bu sektörlerin OSM kurallarına uyan işletmeler içe aktarılır. “Manuel” işaretli sektörlerin OSM kuralı yoktur ve OpenStreetMap'ten içe aktarılamaz.",
+    "statusInfo": "Büyük ülkeler, sırayla indirilen birden fazla Geofabrik bölgesine bölünür. “3/10 bölge”, 10 bölgeden 3'ünün tamamlandığı anlamına gelir.",
+    "importStatuses": {
+      "never": "Hiç aktarılmadı",
+      "queued": "Sırada",
+      "planning": "Planlanıyor",
+      "running": "Aktarılıyor",
+      "paused": "Duraklatıldı",
+      "completed": "Tamamlandı",
+      "partial": "Kısmen tamamlandı",
+      "failed": "Başarısız",
+      "cancelled": "İptal edildi",
+      "disabled": "Devre dışı"
+    },
+    "runStatuses": {
+      "queued": "Sırada",
+      "running": "Çalışıyor",
+      "completed": "Tamamlandı",
+      "failed": "Başarısız",
+      "cancelled": "İptal edildi",
+      "skipped": "Atlandı (değişmemiş)"
+    },
+    "regionsProgress": "{done}/{total} bölge",
+    "regionsFailed": "{count} başarısız",
+    "downloading": "{name} indiriliyor",
+    "processing": "{name} işleniyor",
+    "planningRegions": "Bölgeler planlanıyor…",
+    "cancelImport": "İçe aktarmayı iptal et",
+    "pauseImport": "Duraklat",
+    "resumeImport": "Devam et",
+    "cancelCountryConfirm": "{country} içe aktarması iptal edilsin mi? Önceden aktarılmış bölgeler korunur.",
+    "pauseInfo": "Duraklatma, henüz başlamamış bölgeleri bekletir. Şu anda indirilen bölge önce tamamlanır.",
+    "clearHistory": "Geçmişi temizle",
+    "clearHistoryConfirm": "İçe aktarma geçmişi silinsin mi? Sırada olan veya çalışan içe aktarmalar korunur. İçe aktarılan şirketler etkilenmez.",
+    "historyCleared": "{count} kayıt silindi",
+    "progressTitle": "İçe aktarma ilerlemesi",
+    "progressInfo": "Her ülkenin son içe aktarmasını gösterir. Çubuklar indirilen veriyi gösterir; bölgeler sırayla işlenir.",
+    "noActiveImports": "Henüz içe aktarma yok.",
+    "selectionExists": "“{name}” adlı bir seçim zaten var. Mevcut seçimle üzerine yazılsın mı?",
+    "selectionSaved": "Seçim kaydedildi",
+    "selectionDeleted": "Seçim silindi",
+    "editSelection": "Seçimi düzenle",
+    "deleteSelectionConfirm": "“{name}” adlı kayıtlı seçim silinsin mi?",
+    "selectionEmpty": "Kaydetmeden önce en az bir ülke veya sektör seçin.",
+    "updateWithCurrent": "Mevcut seçimle değiştir",
+    "updateWithCurrentInfo": "Sayfada şu anda seçili olan ülkeleri, bölgeleri ve sektörleri bu adla kaydeder.",
+    "selectionContents": "{countries} ülke · {industries} sektör"
   },
   "companies": {
     "title": "Şirketler",
@@ -779,7 +849,45 @@
     "apiVersion": "API sürümü",
     "rateLimit": "Dakika başına hız sınırı",
     "recheckDays": "Yeniden kontrol (gün)",
-    "duplicates": "Kopya incelemesi"
+    "duplicates": "Kopya incelemesi",
+    "industriesHelp": "Sektör, işletmeleri gruplar (ör. diş klinikleri). Sektörün OSM kuralları, Keşif sırasında hangi OpenStreetMap yerlerinin bu sektöre aktarılacağını belirler.",
+    "rulesTitle": "OSM kuralları",
+    "rulesInfo": "Kural, bu sektörü tanımlayan OpenStreetMap etiketlerini tarif eder; örneğin amenity=dentist. İçe aktarma sırasında her yer, seçilen sektörlerin kurallarıyla karşılaştırılır.",
+    "rulesOptional": "Kurallar isteğe bağlıdır. Hiç kuralı olmayan sektör “manuel” olarak işaretlenir: OpenStreetMap içe aktarmalarında atlanır; bu sektöre şirketler yalnızca CSV içe aktarma, Hızlı Denetim, Apify veya elle eklenebilir.",
+    "ruleWhy": "Bu sektördeki işletmeler OpenStreetMap'te etiketliyse ve Keşif'in onları içe aktarmasını istiyorsanız kural ekleyin. İçe aktarmadan önce kuralı “Etiketleri test et” panelinde deneyin.",
+    "ruleKeyInfo": "Küçük harf, rakam ve _ kullanan kısa ve benzersiz bir kimlik; örneğin dentist_amenity. Sonradan değiştirilemez.",
+    "ruleDescriptionInfo": "Kuralın neyi yakaladığını açıklayan, kendiniz için bir not.",
+    "conditionsInfo": "En fazla üç gruptan oluşan bir JSON nesnesi:\n• all – tüm koşullar sağlanmalı\n• any – en az biri sağlanmalı\n• exclude – hiçbiri sağlanmamalı\nHer koşul: '{\"key\": \"amenity\", \"op\": \"eq\", \"value\": \"dentist\"}'.\nOperatörler: eq (eşittir), in (listeden biri), exists (etiket var), regex (desen).\nEtiketleri wiki.openstreetmap.org (Map features) sayfasında bulabilirsiniz.",
+    "classificationInfo": "Kesin: eşleşmeler doğrudan sektöre atanır. İnceleme adayı: eşleşmeler içe aktarılır ama sektörü onaylamanız için işaretlenir.",
+    "testMatchInfo": "Bir OpenStreetMap yerinin etiketlerini yapıştırın (her satıra bir anahtar=değer); hangi sektör kurallarının eşleştiğini görürsünüz. Hiçbir şey kaydedilmez.",
+    "manualBadge": "Manuel",
+    "manualInfo": "OSM kuralı yok: bu sektör OpenStreetMap'ten içe aktarılmaz.",
+    "keyInfo": "Kalıcı teknik kimlik (küçük harf, rakam, _). Filtrelerde ve dışa aktarmalarda kullanılır.",
+    "priorityInfo": "Sıralama ve ağırlık (0–100). Yüksek değerler önce gösterilir.",
+    "isPriorityInfo": "Öncelikli sektörler puanlamada ek hedef uyumu puanı alır.",
+    "relevantServicesInfo": "Bu sektöre genellikle sattığınız hizmetler; hizmet fırsatı puanlarını etkiler.",
+    "relevantFeaturesInfo": "Bu sektörün web sitelerinde beklenen dönüşüm özellikleri (ör. randevu). Eksik olanlar hizmet ihtiyacı puanını artırabilir.",
+    "scoringProfileInfo": "Bu sektördeki şirketler için kullanılan puanlama profili. Boş = varsayılan profil.",
+    "reviewTemplateInfo": "Bu sektördeki denetimleri incelerken yöneticiye gösterilen sorular.",
+    "apifyGuideTitle": "4 adımda Apify Actor ekleme",
+    "apifyGuide": "1. apify.com'da kullanmak istediğiniz Actor'ü açın (ör. bir Google Maps kazıyıcı) ve kimliğini adres çubuğundan veya API sekmesinden kopyalayın (apify/google-maps-scraper gibi görünür).\n2. Actor'ün “Input” sekmesini açın, JSON görünümüne geçin ve giriş şablonu olarak kullanmak istediğiniz kısmı kopyalayın.\n3. Actor'ü Apify'da bir kez çalıştırın ve çıktının bir öğesine (Dataset → JSON) bakarak alan eşleştirmesi için alan adlarını görün.\n4. Önce düşük bir en fazla öğe sayısı ve maliyet belirleyin, ardından Actor'ü etkinleştirin.",
+    "actorIdInfo": "Actor'ün Apify'daki kimliği, ör. apify/google-maps-scraper. apify.com'da Actor'ün adresinde veya API bölümünde bulunur.",
+    "purposeInfo": "Keşif: sonuçlar şirket olarak eklenir. Reklam: sonuçlar reklam araştırmasında kullanılır.",
+    "maxItemsInfo": "Çalıştırma başına sonuç üst sınırı. Maliyeti kontrol etmek için küçük başlayın (ör. 50).",
+    "maxCostInfo": "Tahmini maliyeti bu USD tutarını aşan çalıştırma reddedilir. Yukarıdaki bütçeler de ayrıca uygulanır.",
+    "allowedKeysInfo": "Çalıştırmayı başlatırken değiştirebileceğiniz giriş alanları, virgülle ayrılmış (ör. searchStringsArray, locationQuery). Diğer alanlar her zaman şablondan gelir.",
+    "inputTemplateInfo": "Actor'ün JSON biçimindeki varsayılan girişi; Actor'ün Input sekmesinden (JSON görünümü) kopyalanır. Örnek:\n'{\"searchStringsArray\": [\"dentist\"], \"locationQuery\": \"Amsterdam\", \"maxCrawledPlacesPerSearch\": 50}'",
+    "fieldMappingInfo": "Hangi çıktı alanının hangi LeadRadar alanını dolduracağı. Sol: LeadRadar alanı (name, website, phone, email, address, city, country). Sağ: Actor çıktısındaki alan adı. Örnek:\n'{\"name\": \"title\", \"website\": \"website\", \"phone\": \"phone\"}'",
+    "editUrls": "Bağlantıları düzenle",
+    "officialUrl": "Resmi sayfa",
+    "officialUrlInfo": "Sağlayıcının bağlantısına tıkladığınızda açılır. https:// ile başlamalıdır.",
+    "searchTemplate": "Arama bağlantısı şablonu",
+    "searchTemplateInfo": "Bir şirketi elle araştırmak için açılan bağlantı. Yer tutucular: '{query}' = şirket adı, '{domain}' = web sitesi alan adı, '{country}' = ülke kodu. Yalnızca resmi sayfayı kullanmak için boş bırakın.",
+    "urlsSaved": "Bağlantılar kaydedildi",
+    "rateLimitInfo": "Bu sağlayıcıya dakikada yapılabilecek en fazla otomatik istek sayısı.",
+    "recheckInfo": "Bir şirketin reklamlarının kaç gün sonra yeniden araştırılacağı.",
+    "apiVersionInfo": "Sağlayıcının resmi API sürümü (ör. Meta için v23.0). Yalnızca sağlayıcı eski sürümü kaldırdığında değiştirin.",
+    "accessTokenInfo": "Sağlayıcının resmi API'si için jeton. Şifreli saklanır ve bir daha gösterilmez."
   },
   "savedFilters": {
     "title": "Kayıtlı Filtreler",
@@ -824,7 +932,13 @@
       "red": "Kırmızı",
       "violet": "Mor",
       "teal": "Camgöbeği"
-    }
+    },
+    "nameEn": "Ad (İngilizce)",
+    "nameTr": "Ad (Türkçe)",
+    "descriptionEn": "Açıklama (İngilizce)",
+    "descriptionTr": "Açıklama (Türkçe)",
+    "bilingualInfo": "Her etiketin bir İngilizce bir de Türkçe adı vardır. İki ad da aynı etikete aittir: filtreler etiketin kendisini kullandığından her iki dilde de çalışır.",
+    "bothRequired": "Adı her iki dilde de girin."
   },
   "jobs": {
     "title": "Arka Plan İşleri",
@@ -856,7 +970,7 @@
       "failed": "Başarısız",
       "cancelled": "İptal edildi",
       "paused": "Duraklatıldı",
-      "dead": "Ölü mektup"
+      "dead": "Deneme hakkı bitti"
     },
     "types": {
       "geofabrik_country_import": "Ülke içe aktarma",
@@ -871,6 +985,31 @@
       "monitor_company": "İzleme",
       "retention_cleanup": "Saklama temizliği",
       "recalculate_scores": "Puan yeniden hesaplama"
+    },
+    "deleteFinished": "Biten işleri temizle",
+    "deleteFinishedConfirm": "Biten tüm iş kayıtları (tamamlanan, başarısız, deneme hakkı biten, iptal edilen) günlükleriyle birlikte silinsin mi? Sırada, çalışan ve duraklatılmış işler korunur.",
+    "deleteJob": "Sil",
+    "deleted": "{count} iş kaydı silindi",
+    "statusInfo": {
+      "queued": "Boş bir işçi yuvası veya aynı ülkenin bir önceki bölgesinin bitmesi bekleniyor.",
+      "running": "Bir işçi bu işi şu anda işliyor.",
+      "waiting_review": "Otomatik kısım bitti; bir yöneticinin inceleme sorularını yanıtlaması gerekiyor.",
+      "completed": "Başarıyla tamamlandı.",
+      "failed": "Otomatik yeniden denemenin çözmeyeceği bir hatayla durdu. Elle yeniden deneyebilirsiniz.",
+      "cancelled": "Bir yönetici tarafından iptal edildi.",
+      "paused": "Siz devam ettirene kadar bekletiliyor.",
+      "dead": "Tüm otomatik denemelerde başarısız oldu (deneme sınırına ulaşıldı). Hatayı görmek için açın; sorun giderildiyse elle yeniden deneyin."
+    },
+    "stages": {
+      "download": "İndiriliyor",
+      "extract": "OSM verisi okunuyor",
+      "import": "Şirketler kaydediliyor",
+      "load_index": "Geofabrik dizini yükleniyor",
+      "plan_extracts": "Bölgeler planlanıyor",
+      "http": "HTTP kontrolleri",
+      "browser": "Tarayıcı kontrolleri",
+      "lighthouse": "Lighthouse",
+      "persist": "Sonuçlar kaydediliyor"
     }
   },
   "usage": {
@@ -1019,7 +1158,15 @@
       "apify.max_cost_per_task_usd": "Görev başına en fazla maliyet (USD)",
       "apify.alert_percent": "Aylık bütçenin %'sinde uyar",
       "apify.enabled": "Apify'ı etkinleştir"
-    }
+    },
+    "scoringHelp": "Potansiyel müşteri puanı (0–100), kural puanlarının kategori sınırlarıyla kırpılmış toplamıdır. Buradaki değişiklikler şirketlere ancak puanları yeniden hesaplandığında yansır. Her gerçek değişiklik yeni bir profil versiyonu oluşturur; böylece eski puanlar açıklanabilir kalır.",
+    "categoryLimitsInfo": "Her kategorinin ekleyebileceği en yüksek puan. Örnek: Hizmet ihtiyacı = 35 ise hizmet ihtiyacı kurallarının tamamı en fazla 35 puan ekleyebilir. Dört sınırın toplamı en fazla 100 olabilir.",
+    "thresholdsInfo": "Listelerde gösterilen sınıflandırmanın puan sınırları. Örnek: Yüksek öncelik = 80 ise 80 ve üzeri puan “Yüksek öncelik” olarak etiketlenir. Sıra yüksek > güçlü > inceleme olmalıdır.",
+    "confidenceWeightsInfo": "Her kanıt kaynağının güven puanına (puandan ne kadar emin olduğumuz) katkısı. Daha kapsamlı denetim veya onaylanmış reklam eşleşmesi güveni artırır.",
+    "versionInfo": "Profil versiyonu. Yalnızca gerçek bir değişiklik kaydettiğinizde artar.",
+    "rulesInfo": "Her kural, sinyali bulunduğunda puan ekler (örneğin “mobil uyumlu değil”). Puanı değiştirip Tab'a basın veya alanın dışına tıklayın; değişiklik kaydedilir. Cezalar negatiftir; dışlamalar şirketi sıralamadan çıkarır.",
+    "serviceRulesInfo": "Hizmet kuralları, sattığınız her hizmet için (ör. Meta reklamları, web yenileme) potansiyel müşteri puanından bağımsız bir fırsat puanı hesaplar.",
+    "recalcInfo": "Tüm şirketlerin puanını güncel kurallarla yeniden hesaplayan bir arka plan işi başlatır."
   },
   "notifications": {
     "title": "Bildirimler",
@@ -1034,7 +1181,10 @@
     "lowDisk": "Disk alanı az: {free_gb} GB boş (rezerv {reserve_gb} GB).",
     "budgetAlert": "{provider} harcaması aylık {budget} USD bütçenin {spent} USD'si.",
     "adResearchCompleted": "{company} için reklam araştırması tamamlandı.",
-    "auditCompleted": "{company} için hızlı denetim tamamlandı."
+    "auditCompleted": "{company} için hızlı denetim tamamlandı.",
+    "clearAll": "Tümünü temizle",
+    "jobFailedNamed": "Arka plan işi başarısız oldu: {name}",
+    "importFailedRegion": "{country} için içe aktarma başarısız oldu ({region})."
   },
   "changes": {
     "title": "Algılanan değişiklikler",
@@ -1070,6 +1220,11 @@
     "invalid_mapping": "Geçersiz sütun eşlemesi.",
     "too_many_targets": "Bu işlem için çok fazla şirket seçildi.",
     "actor_disabled": "Bu Actor devre dışı.",
-    "pdf_not_ready": "PDF henüz hazır değil."
+    "pdf_not_ready": "PDF henüz hazır değil.",
+    "invalid_url": "https:// ile başlayan tam bir adres girin.",
+    "invalid_placeholder": "Yer tutucu olarak yalnızca '{query}', '{domain}' ve '{country}' kullanılabilir.",
+    "invalid_category_limits": "Kategori sınırları 0–100 arasında olmalı ve toplamı en fazla 100 olmalıdır.",
+    "invalid_thresholds": "Eşikler sıralı olmalıdır: yüksek öncelik > güçlü potansiyel > inceleme gerekli (0–100).",
+    "invalid_weights": "Ağırlıklar 0 ile 100 arasında olmalıdır."
   }
 }

@@ -9,12 +9,12 @@ from typing import Any, Literal
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session
 
 from leadradar.api.deps import current_user
 from leadradar.core.activity import record_activity
-from leadradar.core.app_settings import DEF_BY_KEY, public_settings_view, set_setting
+from leadradar.core.app_settings import DEF_BY_KEY, get_setting, public_settings_view, set_setting
 from leadradar.core.config import get_settings
 from leadradar.db.models import (
     ActivityLog,
@@ -67,15 +67,22 @@ def dashboard(db: Session = Depends(get_db), _: User = Depends(current_user)) ->
     completed = db.scalar(select(func.count()).select_from(WebsiteAudit).where(WebsiteAudit.status == "completed"))
     running = db.scalar(select(func.count()).select_from(Job).where(Job.status == "running"))
     queued = db.scalar(select(func.count()).select_from(Job).where(Job.status == "queued"))
+    since = now() - timedelta(days=1)
+    cleared = get_setting(db, "ui.warnings_cleared_at")
+    if cleared:
+        try:
+            since = max(since, datetime.fromisoformat(str(cleared)))
+        except ValueError:
+            pass
     failed_24h = db.scalar(select(func.count()).select_from(Job).where(Job.status.in_(["failed", "dead"]),
-                                                                        Job.finished_at >= now() - timedelta(days=1)))
+                                                                        Job.finished_at >= since))
     top = db.scalars(select(Company).where(Company.merged_into_id.is_(None), Company.archived.is_(False),
                                            Company.do_not_contact.is_(False), Company.effective_lead_score.isnot(None))
                      .order_by(Company.effective_lead_score.desc(), Company.confidence_score.desc().nulls_last()).limit(8)).all()
     recent = db.execute(select(CrmActivity, Company.name).join(Company, Company.id == CrmActivity.company_id)
                         .order_by(CrmActivity.occurred_at.desc()).limit(10)).all()
-    warnings = [{"kind": n.kind, "message_key": n.message_key, "params": n.params, "severity": n.severity, "link": n.link,
-                 "created_at": n.created_at}
+    warnings = [{"id": str(n.id), "kind": n.kind, "message_key": n.message_key, "params": n.params,
+                 "severity": n.severity, "link": n.link, "created_at": n.created_at}
                 for n in db.scalars(select(Notification).where(Notification.severity.in_(["warning", "error"]),
                                                                Notification.read_at.is_(None))
                                     .order_by(Notification.created_at.desc()).limit(5))]
@@ -92,7 +99,37 @@ def dashboard(db: Session = Depends(get_db), _: User = Depends(current_user)) ->
     }
 
 
+@router.post("/dashboard/warnings/clear")
+def clear_warnings(db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Dismiss the Overview warnings: warning/error notifications are marked read and the
+    failed-jobs counter restarts from now. Nothing is deleted."""
+    db.execute(update(Notification).where(Notification.severity.in_(["warning", "error"]), Notification.read_at.is_(None),
+                                          or_(Notification.user_id.is_(None), Notification.user_id == user.id))
+               .values(read_at=now()))
+    set_setting(db, "ui.warnings_cleared_at", now().isoformat(), admin=False)
+    return {"ok": True}
+
+
 # --- Jobs ---------------------------------------------------------------------------------------
+
+FINISHED = ("completed", "failed", "dead", "cancelled")
+IMPORT_TYPES = ("geofabrik_country_import", "geofabrik_extract_import")
+
+
+def resolve_job_notifications(db: Session, job_ids: list[uuid.UUID]) -> None:
+    """A failure notification disappears once its job is retried, cancelled or deleted."""
+    if not job_ids:
+        return
+    keys = [f"{prefix}:{jid}" for jid in job_ids for prefix in ("job_failed", "import_failed")]
+    db.execute(delete(Notification).where(Notification.dedupe_key.in_(keys)))
+
+
+def _sync_import_countries(db: Session, jobs_: list[Job]) -> None:
+    from leadradar.modules.discovery.status import sync_country_status
+
+    for c in {str((j.payload or {}).get("country", "")).upper() for j in jobs_ if j.type in IMPORT_TYPES}:
+        if c:
+            sync_country_status(db, c)
 
 def job_view(j: Job) -> dict:
     return {"id": str(j.id), "type": j.type, "name": j.name, "queue": j.queue, "status": j.status,
@@ -116,7 +153,30 @@ def jobs(status: list[str] = Query(default=[]), type: str | None = None, page: i
     order = [(Job.status == "running").desc(), Job.created_at.desc()]
     rows = db.scalars(q.order_by(*order).offset((page - 1) * page_size).limit(page_size)).all()
     counts = dict(db.execute(select(Job.status, func.count()).group_by(Job.status)).all())
-    return {"total": total, "counts": counts, "items": [job_view(j) for j in rows]}
+    return {"total": total, "page": page, "page_size": page_size, "counts": counts, "items": [job_view(j) for j in rows]}
+
+
+class JobDeleteIn(BaseModel):
+    statuses: list[Literal["completed", "failed", "dead", "cancelled"]] = Field(default_factory=lambda: list(FINISHED))
+    ids: list[uuid.UUID] | None = Field(default=None, max_length=1000)
+
+
+@router.post("/jobs/delete")
+def delete_jobs(body: JobDeleteIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Delete finished job records (with their logs). Queued, running, paused and
+    waiting-for-review jobs are never deleted."""
+    q = select(Job).where(Job.status.in_(body.statuses or list(FINISHED)))
+    if body.ids:
+        q = q.where(Job.id.in_(body.ids))
+    rows = db.scalars(q).all()
+    ids = [j.id for j in rows]
+    resolve_job_notifications(db, ids)
+    for i in range(0, len(ids), 500):
+        db.execute(delete(Job).where(Job.id.in_(ids[i:i + 500])))
+    db.flush()
+    _sync_import_countries(db, list(rows))
+    record_activity(db, "data", "jobs_deleted", user_id=user.id, details={"count": len(ids), "statuses": body.statuses})
+    return {"deleted": len(ids)}
 
 
 @router.get("/jobs/{job_id}")
@@ -146,10 +206,21 @@ def job_action(job_id: uuid.UUID, body: JobAction, db: Session = Depends(get_db)
     j = db.get(Job, job_id)
     if j is None:
         raise HTTPException(404, "not_found")
+    from leadradar.modules.discovery.status import on_job_cancelled, on_job_retried
+
+    touched = [j]
     getattr(queue, body.action)(db, j)
     if body.action == "cancel":
+        on_job_cancelled(db, j)
         for child in db.scalars(select(Job).where(Job.parent_id == j.id, Job.status.in_(["queued", "paused", "running"]))):
             queue.cancel(db, child)
+            on_job_cancelled(db, child)
+            touched.append(child)
+    elif body.action == "retry":
+        on_job_retried(db, j)
+    if body.action in ("cancel", "retry"):
+        resolve_job_notifications(db, [x.id for x in touched])
+    _sync_import_countries(db, touched)
     queue.add_log(db, j.id, "info", f"{body.action} requested by administrator")
     record_activity(db, "data", f"job_{body.action}", user_id=user.id, entity_type="job", entity_id=j.id)
     return job_view(j)
@@ -173,6 +244,19 @@ def notifications(unread_only: bool = False, db: Session = Depends(get_db), user
 class ReadIn(BaseModel):
     ids: list[uuid.UUID] | None = None
     read: bool = True
+
+
+class NotificationDeleteIn(BaseModel):
+    ids: list[uuid.UUID] | None = None  # None = all
+
+
+@router.post("/notifications/delete")
+def delete_notifications(body: NotificationDeleteIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    q = delete(Notification).where(or_(Notification.user_id.is_(None), Notification.user_id == user.id))
+    if body.ids:
+        q = q.where(Notification.id.in_(body.ids))
+    res = db.execute(q)
+    return {"deleted": res.rowcount or 0}
 
 
 @router.post("/notifications/read")
@@ -275,9 +359,28 @@ def system_health(db: Session = Depends(get_db), _: User = Depends(current_user)
 # --- Tags ------------------------------------------------------------------------------------------
 
 class TagIn(BaseModel):
-    name: str = Field(min_length=1, max_length=64)
-    description: str | None = Field(default=None, max_length=300)
+    name_en: str = Field(min_length=1, max_length=64)
+    name_tr: str = Field(min_length=1, max_length=64)
+    description_en: str | None = Field(default=None, max_length=300)
+    description_tr: str | None = Field(default=None, max_length=300)
     color: Literal["neutral", "lime", "blue", "amber", "red", "violet", "teal"] = "neutral"
+
+
+def tag_view(t: Tag, count: int | None = None) -> dict:
+    out = {"id": str(t.id), "name_en": t.name_en, "name_tr": t.name_tr, "description_en": t.description_en,
+           "description_tr": t.description_tr, "color": t.color}
+    if count is not None:
+        out["count"] = count
+    return out
+
+
+def _check_tag_names(db: Session, body: TagIn, exclude: uuid.UUID | None = None) -> None:
+    for col, value in ((Tag.name_en, body.name_en), (Tag.name_tr, body.name_tr)):
+        q = select(Tag.id).where(func.lower(col) == value.strip().lower())
+        if exclude:
+            q = q.where(Tag.id != exclude)
+        if db.scalar(q):
+            raise HTTPException(409, "exists")
 
 
 @router.get("/tags")
@@ -285,15 +388,14 @@ def tags(db: Session = Depends(get_db), _: User = Depends(current_user)) -> list
     from leadradar.db.models import CompanyTag
 
     counts = dict(db.execute(select(CompanyTag.tag_id, func.count()).group_by(CompanyTag.tag_id)).all())
-    return [{"id": str(t.id), "name": t.name, "description": t.description, "color": t.color, "count": counts.get(t.id, 0)}
-            for t in db.scalars(select(Tag).order_by(Tag.name))]
+    return [tag_view(t, counts.get(t.id, 0)) for t in db.scalars(select(Tag).order_by(Tag.name_en))]
 
 
 @router.post("/tags")
 def create_tag(body: TagIn, db: Session = Depends(get_db), _: User = Depends(current_user)) -> dict:
-    if db.scalar(select(Tag.id).where(func.lower(Tag.name) == body.name.strip().lower())):
-        raise HTTPException(409, "exists")
-    t = Tag(name=body.name.strip(), description=body.description, color=body.color)
+    _check_tag_names(db, body)
+    t = Tag(name_en=body.name_en.strip(), name_tr=body.name_tr.strip(), description_en=body.description_en or None,
+            description_tr=body.description_tr or None, color=body.color)
     db.add(t)
     db.flush()
     return {"id": str(t.id)}
@@ -304,7 +406,9 @@ def update_tag(tag_id: uuid.UUID, body: TagIn, db: Session = Depends(get_db), _:
     t = db.get(Tag, tag_id)
     if t is None:
         raise HTTPException(404, "not_found")
-    t.name, t.description, t.color = body.name.strip(), body.description, body.color
+    _check_tag_names(db, body, exclude=t.id)
+    t.name_en, t.name_tr = body.name_en.strip(), body.name_tr.strip()
+    t.description_en, t.description_tr, t.color = body.description_en or None, body.description_tr or None, body.color
     return {"ok": True}
 
 
@@ -657,12 +761,17 @@ def patch_profile(pid: uuid.UUID, body: ProfileIn, db: Session = Depends(get_db)
     if p is None:
         raise HTTPException(404, "not_found")
     _validate_profile(body)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    # Only real changes create a new version; saving identical values is a no-op.
+    changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if getattr(p, k) != v}
+    if not changes:
+        return {"ok": True, "version": p.version, "changed": False}
+    for k, v in changes.items():
         setattr(p, k, v)
     p.version += 1
     p.admin_customized = True
-    record_activity(db, "settings", "scoring_profile_updated", user_id=user.id, entity_id=p.key)
-    return {"ok": True, "version": p.version}
+    record_activity(db, "settings", "scoring_profile_updated", user_id=user.id, entity_id=p.key,
+                    details={"fields": sorted(changes), "version": p.version})
+    return {"ok": True, "version": p.version, "changed": True}
 
 
 class CloneIn(BaseModel):
@@ -703,7 +812,9 @@ def patch_rule(rid: uuid.UUID, body: RulePatch, db: Session = Depends(get_db), u
     r = db.get(ScoringRule, rid)
     if r is None:
         raise HTTPException(404, "not_found")
-    data = body.model_dump(exclude_unset=True)
+    data = {k: v for k, v in body.model_dump(exclude_unset=True).items() if getattr(r, k) != v}
+    if not data:
+        return {"ok": True, "changed": False}
     if "points" in data and r.kind == "contribution" and data["points"] < 0:
         raise HTTPException(400, "contributions_must_be_positive")
     if "points" in data and r.kind == "penalty" and data["points"] > 0:
@@ -716,7 +827,7 @@ def patch_rule(rid: uuid.UUID, body: RulePatch, db: Session = Depends(get_db), u
     if p:
         p.version += 1
     record_activity(db, "settings", "scoring_rule_updated", user_id=user.id, entity_id=r.key, details=data)
-    return {"ok": True}
+    return {"ok": True, "changed": True}
 
 
 @router.get("/scoring/service-rules")
@@ -737,7 +848,10 @@ def patch_service_rule(rid: uuid.UUID, body: ServiceRulePatch, db: Session = Dep
     r = db.get(ServiceRule, rid)
     if r is None:
         raise HTTPException(404, "not_found")
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = {k: v for k, v in body.model_dump(exclude_unset=True).items() if getattr(r, k) != v}
+    if not data:
+        return {"ok": True, "changed": False}
+    for k, v in data.items():
         setattr(r, k, v)
     r.version += 1
     r.admin_customized = True

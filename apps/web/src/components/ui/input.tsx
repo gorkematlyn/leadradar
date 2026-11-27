@@ -1,4 +1,5 @@
 import * as React from "react";
+import { InfoTip } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
 
 export const inputClass =
@@ -29,10 +30,10 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
   return <label className={cn("text-[12px] font-medium text-muted", className)} {...props} />;
 }
 
-export function Field({ label, hint, children, className }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode; className?: string }) {
+export function Field({ label, hint, info, children, className }: { label: React.ReactNode; hint?: React.ReactNode; info?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("flex flex-col gap-1", className)}>
-      <Label>{label}</Label>
+    <div className={cn("flex min-w-0 flex-col gap-1", className)}>
+      <span className="flex items-center gap-1"><Label>{label}</Label>{info ? <InfoTip>{info}</InfoTip> : null}</span>
       {children}
       {hint ? <p className="text-[12px] text-muted">{hint}</p> : null}
     </div>

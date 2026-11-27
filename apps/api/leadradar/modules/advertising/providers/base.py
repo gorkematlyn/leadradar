@@ -93,9 +93,12 @@ class Provider:
     def manual_url(self, q: CompanyQuery) -> str | None:
         if not self.manual_template:
             return None
-        return self.manual_template.format(
-            query=quote_plus(q.name), domain=quote_plus(q.domain or ""), country=(q.country_iso2 or "ALL").upper(),
-        )
+        values = {"query": quote_plus(q.name), "domain": quote_plus(q.domain or ""),
+                  "country": (q.country_iso2 or "ALL").upper()}
+        try:
+            return self.manual_template.format_map(values)
+        except (KeyError, ValueError, IndexError):
+            return None  # an edited template with an unknown placeholder never breaks research
 
     def research(self, q: CompanyQuery) -> ProviderResult:
         return ProviderResult(UNSUPPORTED, source_url=self.manual_url(q),
